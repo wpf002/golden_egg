@@ -62,8 +62,28 @@ export class PolygonProvider implements QuotesProvider {
   }
 
   /**
-   * Closes for every US ticker on the most recent trading day, in one request.
-   * Walks back day-by-day because weekends/holidays return an empty result set.
+   * Every US ticker's close for one day, in a single request.
+   * Returns an empty map for a non-trading day (weekend/holiday).
+   */
+  async groupedCloses(dateYmd: string): Promise<Record<string, number> | null> {
+    try {
+      const r = await this.get(`/v2/aggs/grouped/locale/us/market/stocks/${dateYmd}?adjusted=true`);
+      const results = (r?.results ?? []) as any[];
+      const out: Record<string, number> = {};
+      for (const bar of results) {
+        const sym = String(bar?.T ?? "").toUpperCase();
+        if (sym && Number.isFinite(bar?.c)) out[sym] = bar.c;
+      }
+      return out;
+    } catch (e) {
+      logger.warn({ err: e, date: dateYmd }, "polygon grouped bars failed");
+      return null;
+    }
+  }
+
+  /**
+   * Closes for the requested tickers on the most recent trading day.
+   * Walks back day-by-day because weekends/holidays return no bars.
    */
   async quotes(tickers: string[]): Promise<Record<string, number>> {
     const out: Record<string, number> = {};
@@ -72,19 +92,13 @@ export class PolygonProvider implements QuotesProvider {
 
     for (let back = 0; back < 5; back++) {
       const day = new Date(Date.now() - back * 86_400_000);
-      try {
-        const r = await this.get(`/v2/aggs/grouped/locale/us/market/stocks/${ymd(day)}?adjusted=true`);
-        const results = (r?.results ?? []) as any[];
-        if (results.length === 0) continue; // non-trading day — step back
-        for (const bar of results) {
-          const sym = String(bar?.T ?? "").toUpperCase();
-          if (want.has(sym) && Number.isFinite(bar?.c)) out[sym] = bar.c;
-        }
-        return out;
-      } catch (e) {
-        logger.warn({ err: e, date: ymd(day) }, "polygon grouped bars failed");
-        return out;
+      const all = await this.groupedCloses(ymd(day));
+      if (all === null) return out; // hard failure — already logged
+      if (Object.keys(all).length === 0) continue; // non-trading day — step back
+      for (const [sym, close] of Object.entries(all)) {
+        if (want.has(sym)) out[sym] = close;
       }
+      return out;
     }
     return out;
   }

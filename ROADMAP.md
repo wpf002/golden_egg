@@ -251,11 +251,36 @@ normalized across the observed min..max.
       classifier declines non-catalysts (verified: it correctly rejected a Wikipedia reference page).
 - [x] **Markdown export** — `GET /api/export/markdown?topN=&sinceDays=&download=`. Ranked by
       confidence × novelty, reuses the corrupt-flag guard, no network/credits.
-- [ ] **Fix 6 corrupt flag prices** — ⛔ **blocked on `POLYGON_API_KEY`.** `server/scripts/repair-flag-prices.ts`
-      is written (dry-run by default) and backfills the *true* historical close on each egg's flag date.
-      Doing it without candles would mean nulling them, which resets returns to 0% and erases real history —
-      worse than leaving them excluded by the suspect guard.
-- [ ] **Sparklines / backtest "as-of"** — ⛔ same blocker; unblocked the moment Polygon has a key.
+- [x] **Fix corrupt flag prices** — ✅ **done with real data.** With Polygon keyed, `repair-flag-prices.ts`
+      read the *true* historical close on each egg's flag date. GEV's `$1` placeholder became its actual
+      2026-07-08 close of `$1070.99` (independently verified against Polygon), turning a fake **+102,806%**
+      into a real **−3.9%**. **0 corrupt rows remain.** Repaired at the source, not reset.
+- [x] **Sparklines** — 30-ish daily closes per `EggCard`, drawn from the local cache. One shared
+      `/api/sparklines` request serves the whole page (TanStack dedupes it across cards).
+- [x] **Backtest now uses real closes** — `priceSource: "close"`, not the spot fallback. 74/74 eggs scored,
+      0 suspect.
+
+### The daily-close cache — the thing that made all of this viable
+
+Polygon's free tier allows ~5 requests/min. A per-ticker series fetch made the backtest take **10+ minutes
+for ~50 tickers and time out** — unusable. But Polygon's *grouped* daily bars return **every US ticker for
+one day in a single request**, so cost scales with **days tracked, not tickers held**.
+
+So closes are now cached locally (`daily_closes`, migration 0004), populated by grouped bars
+(`POST /api/closes/backfill`, plus a scheduled refresh after the US close). Measured:
+
+| | before | after |
+|---|---|---|
+| Backtest | 10+ min (timed out) | **0.015 s** |
+| Price source | `spot` (approximate) | **`close` (real)** |
+| Backfill cost | 50 requests (1/ticker) | **13 requests (1/trading day)** — 564 rows, all tickers |
+
+`fetchDailyCloses` deliberately does **not** fall back to a per-ticker call on a cache miss — that's exactly
+what made it unusable. A miss means "run the backfill".
+
+**Free-tier split that makes this work:** `QUOTES_PROVIDER=finnhub` (real-time spot, 60/min) +
+`CANDLES_PROVIDER=polygon` (daily candles). Polygon's gainers snapshot is 403/paid — the provider degrades
+to empty, as designed.
 
 **Bug found while reading the export output:** 8 catalysts had *relative* `source_url`s
 ("/pressroom/releases/press587.php") from the EIA feed, rendering as dead links in the UI and exports.

@@ -13,6 +13,7 @@ import {
 } from "./middleware/validate";
 import { addManualCatalyst, ManualCatalystError } from "./pipeline/manual-catalyst";
 import { renderMarkdownReport } from "./lib/report";
+import { backfillCloses } from "./pipeline/closes";
 import { mapWithConcurrency } from "./lib/concurrency";
 import { scoreReturn } from "./lib/backtest";
 import { evaluateAlerts } from "./pipeline/alerts";
@@ -304,6 +305,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (e instanceof ManualCatalystError) {
         return res.status(e.status).json({ error: e.message });
       }
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // ---------- Daily-close cache ----------
+  // Populating this is what makes the backtest and sparklines usable on a
+  // rate-limited plan: one request per DAY covers every ticker at once.
+  app.post("/api/closes/backfill", async (req, res) => {
+    try {
+      const days = Number(req.query.days ?? 40);
+      if (!Number.isInteger(days) || days < 1 || days > 365) {
+        return res.status(400).json({ error: "days must be an integer between 1 and 365" });
+      }
+      const result = await backfillCloses(days);
+      res.json(result);
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // All cached series in one response, keyed by ticker — a page of sparklines
+  // is then one request instead of one per card.
+  app.get("/api/sparklines", async (req, res) => {
+    try {
+      const days = Number(req.query.days ?? 45);
+      if (!Number.isInteger(days) || days < 2 || days > 365) {
+        return res.status(400).json({ error: "days must be an integer between 2 and 365" });
+      }
+      const from = toYmd(Date.now() - days * 86_400_000);
+      res.json(await storage.getClosesSince(from));
+    } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }
   });

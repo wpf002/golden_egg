@@ -118,6 +118,32 @@ export const watchlist = sqliteTable("watchlist", {
 });
 
 /**
+ * DAILY CLOSES — local cache of end-of-day closes.
+ *
+ * Exists because of a hard provider constraint: Polygon's free tier caps at
+ * ~5 requests/min, so fetching a series per ticker made the backtest take 10+
+ * minutes for ~50 tickers. Grouped daily bars return EVERY US ticker for one
+ * day in a single request, so populating this table costs one request per DAY
+ * regardless of how many tickers we track — then reads are local and instant.
+ *
+ * This is what makes both the backtest and sparklines viable on a free plan.
+ */
+export const dailyCloses = sqliteTable(
+  "daily_closes",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    ticker: text("ticker").notNull(),
+    date: text("date").notNull(), // YYYY-MM-DD (UTC)
+    close: real("close").notNull(),
+  },
+  (t) => ({
+    tickerDateUnique: uniqueIndex("daily_closes_ticker_date_unique").on(t.ticker, t.date),
+    tickerIdx: index("daily_closes_ticker_idx").on(t.ticker),
+    dateIdx: index("daily_closes_date_idx").on(t.date),
+  })
+);
+
+/**
  * PRICE ALERTS — Recorded when a watchlist egg's return-vs-flag crosses a
  * threshold. Uses only quote data (no LLM), so evaluating these is free.
  *
@@ -182,6 +208,7 @@ export const insertGoldenEggSchema = createInsertSchema(goldenEggs).omit({ id: t
 export const insertWatchlistSchema = createInsertSchema(watchlist).omit({ id: true });
 export const insertRippleCacheSchema = createInsertSchema(rippleCache).omit({ id: true });
 export const insertPriceAlertSchema = createInsertSchema(priceAlerts).omit({ id: true });
+export const insertDailyCloseSchema = createInsertSchema(dailyCloses).omit({ id: true });
 export const insertScanRunSchema = createInsertSchema(scanRuns).omit({ id: true });
 
 // ---- Types ----
@@ -199,6 +226,8 @@ export type RippleCache = typeof rippleCache.$inferSelect;
 export type InsertRippleCache = z.infer<typeof insertRippleCacheSchema>;
 export type PriceAlert = typeof priceAlerts.$inferSelect;
 export type InsertPriceAlert = z.infer<typeof insertPriceAlertSchema>;
+export type DailyClose = typeof dailyCloses.$inferSelect;
+export type InsertDailyClose = z.infer<typeof insertDailyCloseSchema>;
 export type PriceAlertWithEgg = PriceAlert & {
   ticker: string;
   companyName: string;

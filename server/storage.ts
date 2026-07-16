@@ -7,6 +7,7 @@ import {
   rippleCache,
   scanRuns,
   priceAlerts,
+  dailyCloses,
 } from "@shared/schema";
 import type {
   Catalyst,
@@ -27,10 +28,11 @@ import type {
   PriceAlert,
   InsertPriceAlert,
   PriceAlertWithEgg,
+  InsertDailyClose,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
-import { eq, desc, sql, lt, and, isNotNull, isNull } from "drizzle-orm";
+import { eq, desc, asc, sql, lt, lte, gte, and, isNotNull, isNull } from "drizzle-orm";
 import { env } from "./config";
 import { runMigrations } from "./migrate";
 
@@ -88,6 +90,16 @@ export interface IStorage {
   removeFromWatchlist(eggId: number): Promise<void>;
   listWatchlist(): Promise<GoldenEggWithCatalyst[]>;
   isOnWatchlist(eggId: number): Promise<boolean>;
+
+  // Daily closes (local cache — see pipeline/closes.ts for why)
+  /** Upsert closes. Returns rows written. */
+  putDailyCloses(rows: InsertDailyClose[]): Promise<number>;
+  /** Closes for one ticker in [fromYmd, toYmd], ascending. */
+  getDailyCloses(ticker: string, fromYmd: string, toYmd: string): Promise<{ date: string; close: number }[]>;
+  /** Dates already cached, so a backfill can skip them. */
+  listCachedCloseDates(): Promise<string[]>;
+  /** Every cached close since `fromYmd`, keyed by ticker — one query for a whole page of sparklines. */
+  getClosesSince(fromYmd: string): Promise<Record<string, { date: string; close: number }[]>>;
 
   // Price alerts
   createAlert(a: InsertPriceAlert): Promise<PriceAlert>;
@@ -303,6 +315,66 @@ export class DatabaseStorage implements IStorage {
   async isOnWatchlist(eggId: number) {
     const r = db.select().from(watchlist).where(eq(watchlist.eggId, eggId)).get();
     return !!r;
+  }
+
+  // Daily closes
+  async putDailyCloses(rows: InsertDailyClose[]) {
+    if (rows.length === 0) return 0;
+    // One transaction for the whole day's batch — thousands of single-row
+    // inserts would otherwise each pay an fsync.
+    const insert = db
+      .insert(dailyCloses)
+      .values({
+        ticker: sql.placeholder("ticker"),
+        date: sql.placeholder("date"),
+        close: sql.placeholder("close"),
+      })
+      .onConflictDoNothing()
+      .prepare();
+    let written = 0;
+    db.transaction(() => {
+      for (const r of rows) {
+        insert.run({ ticker: r.ticker, date: r.date, close: r.close });
+        written++;
+      }
+    });
+    return written;
+  }
+  async getDailyCloses(ticker: string, fromYmd: string, toYmd: string) {
+    return db
+      .select({ date: dailyCloses.date, close: dailyCloses.close })
+      .from(dailyCloses)
+      .where(
+        and(
+          eq(dailyCloses.ticker, ticker.trim().toUpperCase()),
+          gte(dailyCloses.date, fromYmd),
+          lte(dailyCloses.date, toYmd)
+        )
+      )
+      .orderBy(asc(dailyCloses.date))
+      .all();
+  }
+  async listCachedCloseDates() {
+    return db
+      .selectDistinct({ date: dailyCloses.date })
+      .from(dailyCloses)
+      .all()
+      .map((r) => r.date);
+  }
+  async getClosesSince(fromYmd: string) {
+    // One query for every ticker, so a page of sparklines is a single request
+    // rather than one per card.
+    const rows = db
+      .select({ ticker: dailyCloses.ticker, date: dailyCloses.date, close: dailyCloses.close })
+      .from(dailyCloses)
+      .where(gte(dailyCloses.date, fromYmd))
+      .orderBy(asc(dailyCloses.ticker), asc(dailyCloses.date))
+      .all();
+    const out: Record<string, { date: string; close: number }[]> = {};
+    for (const r of rows) {
+      (out[r.ticker] ??= []).push({ date: r.date, close: r.close });
+    }
+    return out;
   }
 
   // Price alerts

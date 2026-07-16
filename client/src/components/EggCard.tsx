@@ -4,6 +4,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { returnVsFlag, deltaColor } from "@/lib/returns";
+import { useQuery } from "@tanstack/react-query";
+import { Sparkline } from "@/components/Sparkline";
 
 export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: (id: number) => void }) {
   const qc = useQueryClient();
@@ -36,6 +38,13 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
   const { pct: deltaPct, suspect: badFlagPrice } = returnVsFlag(egg.priceAtFlag, egg.currentPrice);
   const deltaClass = deltaColor(deltaPct);
 
+  // One shared query for every ticker's series: TanStack dedupes it across all
+  // cards on the page, so N cards still cost a single request.
+  const { data: sparklines } = useQuery<Record<string, { date: string; close: number }[]>>({
+    queryKey: ["/api/sparklines"],
+  });
+  const series = sparklines?.[egg.ticker.toUpperCase()] ?? [];
+
   return (
     <div
       className="border border-card-border bg-card rounded-md hover-elevate p-5 group cursor-pointer"
@@ -59,6 +68,17 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
             {egg.ticker}
           </div>
           <div className="text-sm text-foreground truncate flex-1">{egg.companyName}</div>
+          {series.length > 1 && (
+            // The sparkline's colour tracks its own window, which can disagree
+            // with the delta beside it (that one is measured since the flag
+            // date). Spell the window out so the two aren't read as one number.
+            <div
+              className="shrink-0"
+              title={`${series.length} daily closes, ${series[0].date} → ${series[series.length - 1].date} (recent trend — the % beside it is measured since the flag date)`}
+            >
+              <Sparkline closes={series} />
+            </div>
+          )}
           {egg.currentPrice != null && (
             <div className="text-right shrink-0">
               <div className="font-mono text-sm text-foreground tabular" data-testid={`text-price-${egg.id}`}>

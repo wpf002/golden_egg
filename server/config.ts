@@ -46,6 +46,10 @@ const schema = z.object({
   CACHE_SWEEP_MINUTES: z.coerce.number().int().positive().default(360),
   /** Alert when a watchlist egg's return-vs-flag moves this far (%), either way. */
   ALERT_THRESHOLD_PCT: z.coerce.number().positive().default(10),
+  /** Daily-close cache refresh, as a 5-field schedule expression. Empty disables it. */
+  CLOSES_SCHEDULE: z.string().default(""),
+  /** How many calendar days back the close backfill covers. */
+  CLOSES_BACKFILL_DAYS: z.coerce.number().int().positive().max(365).default(45),
 
   // Server
   PORT: z.coerce.number().default(5000),

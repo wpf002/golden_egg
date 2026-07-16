@@ -16,6 +16,7 @@ import cron, { type ScheduledTask } from "node-cron";
 import { env } from "./config";
 import { storage } from "./storage";
 import { runFullScan, ScanInProgressError } from "./pipeline/scan";
+import { backfillCloses } from "./pipeline/closes";
 import { log } from "./logger";
 
 const logger = log("scheduler");
@@ -72,6 +73,39 @@ export function startScheduledTasks(): void {
   } else {
     logger.warn({ sweepExpr }, "computed cache-sweep schedule is invalid — sweep disabled");
   }
+
+  // ---- Daily-close cache ----
+  startClosesTask();
+}
+
+/**
+ * Keep the daily-close cache current.
+ *
+ * Runs after the close on weekdays. Costs one request per uncached trading day
+ * and covers every ticker at once, so steady-state it's a single request a day.
+ * Free (quote data), but scheduled rather than on-demand because a cold cache
+ * takes minutes on a rate-limited plan.
+ */
+export function startClosesTask(): void {
+  const expr = env.CLOSES_SCHEDULE;
+  if (!expr) {
+    logger.info("daily-close backfill disabled (set CLOSES_SCHEDULE to enable)");
+    return;
+  }
+  if (!cron.validate(expr)) {
+    throw new Error(`CLOSES_SCHEDULE is not a valid schedule expression: "${expr}"`);
+  }
+  tasks.push(
+    cron.schedule(expr, async () => {
+      try {
+        const r = await backfillCloses(env.CLOSES_BACKFILL_DAYS);
+        logger.info({ ...r }, "scheduled closes backfill complete");
+      } catch (e) {
+        logger.error({ err: e }, "scheduled closes backfill failed");
+      }
+    })
+  );
+  logger.info({ schedule: expr }, "daily-close backfill enabled");
 }
 
 /** Stop all scheduled tasks (used on shutdown). */

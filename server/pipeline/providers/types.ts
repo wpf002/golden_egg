@@ -15,6 +15,14 @@ export interface QuotesProvider {
   ohlcv(ticker: string, startYmd: string, endYmd: string): Promise<{ date: string; close: number }[]>;
   /** Day's top movers. Empty when the plan doesn't include a screener. */
   marketGainers(): Promise<GainerRow[]>;
+  /**
+   * Every ticker's close for one day, in ONE request.
+   *
+   * This is the difference between a viable and an unusable backtest on a
+   * rate-limited plan: cost scales with days, not tickers. Returns null when
+   * the provider has no such endpoint, so callers can fall back to per-ticker.
+   */
+  groupedCloses?(dateYmd: string): Promise<Record<string, number> | null>;
 }
 
 /** Transient failures (429/timeouts) get a couple of backoff retries before giving up. */

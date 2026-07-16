@@ -18,8 +18,14 @@
  */
 import "dotenv/config";
 import { sqlite } from "../storage";
-import { fetchDailyCloses, toYmd } from "../pipeline/finance";
+import { toYmd } from "../pipeline/finance";
+import { getCandles } from "../pipeline/providers/quotes";
 import { candlesProvider } from "../config";
+
+// Goes straight to the provider rather than the daily-close cache: this needs
+// arbitrary historical dates that predate the cache, and as a one-off over a
+// handful of rows the slow per-ticker path is fine.
+const fetchDailyCloses = (ticker: string, from: string, to: string) => getCandles().ohlcv(ticker, from, to);
 
 const APPLY = process.argv.includes("--apply");
 

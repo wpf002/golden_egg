@@ -29,6 +29,13 @@
       "when": 1784230548545,
       "tag": "0003_omniscient_earthquake",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1784236174679,
+      "tag": "0004_clumsy_mariko_yashida",
+      "breakpoints": true
     }
   ]
 }
