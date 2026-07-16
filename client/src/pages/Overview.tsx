@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Play, TrendingUp, Zap, Database, Download } from "lucide-react";
+import { Play, TrendingUp, Zap, Database, Download, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import type { Catalyst, GoldenEggWithCatalyst, ScanRun } from "@/lib/types";
 import { EggCard } from "@/components/EggCard";
@@ -242,7 +242,7 @@ function StatCard({
 }: {
   label: string;
   value: number | string;
-  icon: any;
+  icon: LucideIcon;
   sublabel?: string;
   accent?: "pos" | "neg";
 }) {

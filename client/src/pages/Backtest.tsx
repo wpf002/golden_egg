@@ -20,7 +20,7 @@ export default function BacktestPage() {
         description: `${j.rows.length} rows · ${j.overall ? `${(j.overall.winRate * 100).toFixed(0)}% win rate` : "no returns yet"}`,
       });
     },
-    onError: (e: any) => toast({ title: "Backtest failed", description: e?.message ?? "Unknown error" }),
+    onError: (e: Error) => toast({ title: "Backtest failed", description: e.message || "Unknown error" }),
   });
 
   return (

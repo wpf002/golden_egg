@@ -45,5 +45,12 @@ export default tseslint.config(
     files: ["*.config.{ts,js}"],
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },
+  {
+    // Tests use `any` deliberately: mock shapes, partial fixtures, and probing
+    // malformed input. Enforcing it here produces noise, not safety — and the
+    // noise was drowning out the handful of real ones in production code.
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: { "@typescript-eslint/no-explicit-any": "off" },
+  },
   prettier // must stay last: disables stylistic rules Prettier owns
 );

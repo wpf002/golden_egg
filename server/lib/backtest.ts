@@ -19,6 +19,15 @@ export type ScoreInput = {
   priceAtFlag: number | null;
   /** Last refreshed spot price — stands in when the plan has no daily candles. */
   currentPrice: number | null;
+  /**
+   * Point-in-time cutoff (YYYY-MM-DD). Score as if today were this date: use the
+   * last close on or before it and ignore everything after.
+   *
+   * Without this the "return" always runs to today, so every historical egg is
+   * scored with information it couldn't have had — which is how a backtest
+   * flatters itself.
+   */
+  asOf?: string;
 };
 
 export type ScoreResult = {
@@ -29,12 +38,21 @@ export type ScoreResult = {
   suspect: boolean;
 };
 
-export function scoreReturn({ closes, flagDate, priceAtFlag, currentPrice }: ScoreInput): ScoreResult {
+export function scoreReturn({ closes, flagDate, priceAtFlag, currentPrice, asOf }: ScoreInput): ScoreResult {
+  // In as-of mode, discard anything the evaluator couldn't have known yet.
+  const visible = asOf ? closes.filter((c) => c.date <= asOf) : closes;
+
   // First close on or after the flag date; fall back to the recorded flag price.
-  const flagClose = closes.find((c) => c.date >= flagDate)?.close ?? priceAtFlag ?? null;
+  const flagClose = visible.find((c) => c.date >= flagDate)?.close ?? priceAtFlag ?? null;
+
   // Prefer a real daily close; fall back to spot so the backtest still works
-  // without a candles-capable provider.
-  const latestClose = closes.length ? closes[closes.length - 1].close : (currentPrice ?? null);
+  // without a candles-capable provider. Never fall back to spot in as-of mode:
+  // today's price is exactly the future information we're excluding.
+  const latestClose = visible.length
+    ? visible[visible.length - 1].close
+    : asOf
+      ? null
+      : (currentPrice ?? null);
 
   let returnPct: number | null = null;
   if (flagClose && latestClose && flagClose > 0) {

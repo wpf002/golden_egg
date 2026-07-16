@@ -59,6 +59,79 @@ describe("scoreReturn — spot fallback (no candles on the free plan)", () => {
   });
 });
 
+describe("scoreReturn — as-of (point-in-time) mode", () => {
+  const series = closes(
+    ["2026-01-01", 100],
+    ["2026-01-02", 110],
+    ["2026-01-03", 200] // the future, relative to an as-of of Jan 2
+  );
+
+  it("scores to the cutoff and ignores later closes", () => {
+    const r = scoreReturn({
+      closes: series,
+      flagDate: "2026-01-01",
+      priceAtFlag: null,
+      currentPrice: null,
+      asOf: "2026-01-02",
+    });
+    expect(r.latestClose).toBe(110); // not 200
+    expect(r.returnPct).toBeCloseTo(10);
+  });
+
+  it("REGRESSION: never leaks the current spot price into an as-of score", () => {
+    // Spot IS today's price — exactly the future information as-of excludes.
+    // Falling back to it would make every historical backtest flatter itself.
+    const r = scoreReturn({
+      closes: [],
+      flagDate: "2026-01-01",
+      priceAtFlag: 100,
+      currentPrice: 999,
+      asOf: "2026-01-02",
+    });
+    expect(r.latestClose).toBeNull();
+    expect(r.returnPct).toBeNull();
+  });
+
+  it("still uses spot when NOT in as-of mode", () => {
+    const r = scoreReturn({ closes: [], flagDate: "2026-01-01", priceAtFlag: 100, currentPrice: 120 });
+    expect(r.latestClose).toBe(120);
+    expect(r.returnPct).toBeCloseTo(20);
+  });
+
+  it("uses the cutoff's own close when it lands exactly on a trading day", () => {
+    const r = scoreReturn({
+      closes: series,
+      flagDate: "2026-01-01",
+      priceAtFlag: null,
+      currentPrice: null,
+      asOf: "2026-01-03",
+    });
+    expect(r.latestClose).toBe(200);
+  });
+
+  it("falls back to the last close BEFORE a non-trading cutoff", () => {
+    const r = scoreReturn({
+      closes: series,
+      flagDate: "2026-01-01",
+      priceAtFlag: null,
+      currentPrice: null,
+      asOf: "2026-01-02T23:59".slice(0, 10), // Jan 2
+    });
+    expect(r.latestClose).toBe(110);
+  });
+
+  it("yields nothing when the cutoff precedes every close", () => {
+    const r = scoreReturn({
+      closes: series,
+      flagDate: "2026-01-01",
+      priceAtFlag: null,
+      currentPrice: null,
+      asOf: "2025-12-31",
+    });
+    expect(r.returnPct).toBeNull();
+  });
+});
+
 describe("scoreReturn — corrupt flag-price guard", () => {
   it("excludes the real-world GEV case ($1 placeholder vs a $1,072 stock)", () => {
     const r = scoreReturn({ closes: [], flagDate: "2026-01-01", priceAtFlag: 1, currentPrice: 1071.99 });

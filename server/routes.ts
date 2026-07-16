@@ -10,12 +10,14 @@ import {
   zodMessage,
   manualCatalystSchema,
   exportQuerySchema,
+  backtestQuerySchema,
 } from "./middleware/validate";
 import { addManualCatalyst, ManualCatalystError } from "./pipeline/manual-catalyst";
 import { renderMarkdownReport } from "./lib/report";
 import { backfillCloses } from "./pipeline/closes";
 import { mapWithConcurrency } from "./lib/concurrency";
 import { scoreReturn } from "./lib/backtest";
+import { analyzeHopLag, type EggSeries } from "./lib/hop-lag";
 import { evaluateAlerts } from "./pipeline/alerts";
 import { env } from "./config";
 
@@ -99,11 +101,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Backtest: for each egg, compute return-since-flag using daily closes.
   // Rolls up win-rate + median return by theme / sector / hop_distance.
-  app.post("/api/backtest/run", async (_req, res) => {
+  app.post("/api/backtest/run", async (req, res) => {
     try {
-      const eggs = await storage.listEggs({ limit: 500 });
+      const q = backtestQuerySchema.safeParse(req.query);
+      if (!q.success) return res.status(400).json({ error: zodMessage(q.error) });
+      const asOf = q.data.asOf;
+
+      const all = await storage.listEggs({ limit: 500 });
+      // Point-in-time: only eggs that had actually been flagged by the cutoff.
+      // Including later ones would score picks that didn't exist yet.
+      const eggs = asOf ? all.filter((e) => toYmd(e.priceAtFlagDate ?? e.createdAt) <= asOf) : all;
+      const excludedByAsOf = all.length - eggs.length;
+
       const uniqueTickers = Array.from(new Set(eggs.map((e) => e.ticker.toUpperCase())));
-      const endYmd = toYmd(Date.now());
+      const endYmd = asOf ?? toYmd(Date.now());
 
       // Per-ticker: earliest flag date determines start range
       const startByTicker: Record<string, string> = {};
@@ -162,11 +173,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           flagDate,
           priceAtFlag: e.priceAtFlag,
           currentPrice: e.currentPrice,
+          asOf,
         });
-        const daysHeld = Math.max(
-          0,
-          Math.floor((Date.now() - (e.priceAtFlagDate ?? e.createdAt)) / 86400_000)
-        );
+        // Measure the holding period to the cutoff, not to today — in as-of mode
+        // "days held" must mean days as of that date.
+        const asOfMs = asOf ? Date.parse(asOf + "T00:00:00Z") : Date.now();
+        const daysHeld = Math.max(0, Math.floor((asOfMs - (e.priceAtFlagDate ?? e.createdAt)) / 86400_000));
         rows.push({
           eggId: e.id,
           ticker: t,
@@ -249,6 +261,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         priceSource: haveCandles ? "close" : "spot",
         // Rows dropped from scoring because their flag price looks corrupt.
         suspectCount: rows.filter((r) => r.suspect).length,
+        // Point-in-time mode: what date we scored as of, and how many eggs were
+        // excluded for not existing yet.
+        asOf: asOf ?? null,
+        excludedByAsOf,
       });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
@@ -336,6 +352,33 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
       const from = toYmd(Date.now() - days * 86_400_000);
       res.json(await storage.getClosesSince(from));
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Second-hop lag: does the 2nd-order name actually move AFTER the 1st-order
+  // one? That lag is the app's entire premise, so it's worth measuring.
+  app.get("/api/analysis/hop-lag", async (req, res) => {
+    try {
+      const threshold = Number(req.query.thresholdPct ?? 3);
+      if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 100) {
+        return res.status(400).json({ error: "thresholdPct must be a number between 0 and 100" });
+      }
+      const eggs = await storage.listEggs({ limit: 500 });
+      const from = toYmd(Date.now() - 120 * 86_400_000);
+      const to = toYmd(Date.now());
+      const closesByTicker = await storage.getClosesSince(from);
+
+      const series: EggSeries[] = eggs.map((e) => ({
+        eggId: e.id,
+        ticker: e.ticker.toUpperCase(),
+        hopDistance: e.hopDistance,
+        flagDate: toYmd(e.priceAtFlagDate ?? e.createdAt),
+        closes: (closesByTicker[e.ticker.toUpperCase()] ?? []).filter((c) => c.date <= to),
+      }));
+
+      res.json(analyzeHopLag(series, threshold));
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }

@@ -74,9 +74,12 @@ app.use("/api/catalysts/manual", expensiveLimiter);
 (async () => {
   await registerRoutes(httpServer, app);
 
-  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+  // Express hands the error handler whatever was thrown, so `unknown` is the
+  // honest type — narrow before touching it.
+  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+    const e = (err ?? {}) as { status?: number; statusCode?: number; message?: string };
+    const status = e.status || e.statusCode || 500;
+    const message = e.message || "Internal Server Error";
 
     req.log?.error({ err }, "unhandled error");
 

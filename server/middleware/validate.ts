@@ -29,6 +29,15 @@ export const manualCatalystSchema = z
     path: ["url"],
   });
 
+/** Point-in-time backtest: score as if today were `asOf`. */
+export const backtestQuerySchema = z.object({
+  asOf: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "asOf must be YYYY-MM-DD")
+    .refine((d) => !Number.isNaN(Date.parse(d + "T00:00:00Z")), "asOf must be a real date")
+    .optional(),
+});
+
 export const exportQuerySchema = z.object({
   topN: z.coerce.number().int().positive().max(200).optional(),
   sinceDays: z.coerce.number().int().positive().max(3650).optional(),

@@ -297,6 +297,74 @@ existing rows — verified the resolved URL returns 200 and that the feed itself
 
 ---
 
+## Phase 7 — Themes, point-in-time backtest, hop-lag  ✅ *(2026-07-16)*
+
+### The ripple cache had never hit. Not once.
+
+The cache is *"the primary credit-saving mechanism"* under the project's #1 constraint. Measured: **9/9 cache
+entries non-canonical, 0 hits recorded, 6 scans, 229 credits spent, 0 saved.**
+
+`coerceToCanonical` ended in `return raw.slice(0, 60)` — a passthrough. The classifier wrote prose
+("Federal Reserve monetary policy trajectory") instead of picking from the list, the fuzzy match missed, and
+each invented theme became its own cache key. Keys never repeated, so nothing was ever reused.
+
+Fixed by: returning `""` instead of passing unknown themes through; having the classifier return a theme
+**number** (an index either resolves or it doesn't — no drift); and keeping the *conservative* all-tokens
+fuzzy match. Looser token-overlap scoring was measured and **rejected** — it mapped
+`"global energy supply chain disruption"` → `"Semiconductor supply chain"`, which would serve semiconductor
+eggs for an energy catalyst. A miss beats a confident wrong answer.
+
+**Vocabulary** (+5 themes, user decision): the feeds (Fed/EIA/BLS/USTR) emit catalyst classes the original 16
+couldn't hold — which is *why* the classifier kept inventing. Added energy outlook, monetary policy,
+financial regulation, trade, labor.
+
+### Theme rollup
+
+`catalysts.canonical_theme` persisted (migration 0005) and rolled up by it. `catalyst.theme` is the **source
+feed's label** — "energy data" means "the EIA feed", not a subject — so it lumped unrelated theses together.
+**74/74 eggs now roll up canonically (was 1/74)**, and the rollup finally differentiates:
+
+| theme | n | win | median |
+|---|---|---|---|
+| AI datacenter buildout | 8 | 75% | +3.07% |
+| Monetary policy & interest rates | 15 | 73% | +2.67% |
+| Financial regulation & compliance | 11 | 64% | +2.90% |
+| Energy supply & demand outlook | 32 | 47% | 0.00% |
+| Grid & power infrastructure | 5 | 40% | −1.47% |
+
+The backfill needed its own prompt: `classifyCatalysts` couples theme choice to the keep decision, so the
+model zeroed the theme whenever it judged a catalyst "not material" (6/10 unmapped). Asking only
+"which theme?" maps 10/10.
+
+- [x] **Backtest "as-of" mode** — `POST /api/backtest/run?asOf=YYYY-MM-DD`. Excludes eggs not yet flagged and
+      closes after the cutoff. Notably it **refuses to fall back to spot** in as-of mode: spot is today's
+      price, i.e. exactly the future information the mode exists to exclude. `daysHeld` measures to the
+      cutoff too. Verified: as-of 2026-07-10 → 62 eggs/71%; as-of 2026-07-02 → 0 scored, 74 correctly
+      excluded as "not flagged yet".
+- [x] **`any` cleanup** — 41 → 14. Tests are exempted (mock shapes; the rule there was noise drowning out
+      real ones). The remaining 14 sit at external-JSON boundaries (Polygon/Finnhub/SEC/LLM) where `unknown`
+      would force casts at every use site without adding safety — left deliberately, not overlooked.
+
+### Second-hop lag — measured, and the answer is *inconclusive*
+
+`GET /api/analysis/hop-lag?thresholdPct=N`. This is the empirical test of the whole premise: do 2nd-order
+names really move *after* 1st-order ones? Result on current data:
+
+| threshold | hop 1 | hop 2 | hop 3 | verdict |
+|---|---|---|---|---|
+| 3% | 5 days | 5 days | 1 day | **no timing edge** |
+| 2% | 2 days | 5 days | 1 day | 3-day lag (thesis holds) |
+
+**The verdict flips with the threshold, and hop 3 moves fastest at both — backwards from the thesis.** This
+is not a confirmation. Two caveats that likely dominate: the close cache holds only ~13 trading days (too
+short to see multi-week lags), and many eggs never move at all (8/19 at hop 1). The analysis deliberately
+returns "Not enough data" below 3 movers per hop rather than computing a confident number from noise.
+
+**To get a real answer:** backfill a longer close window (`POST /api/closes/backfill?days=180`) and re-run.
+Until then the parallel-markets thesis is unproven by this dataset — worth knowing before trading on it.
+
+---
+
 ## Suggested sequencing
 
 ```
