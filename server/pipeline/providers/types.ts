@@ -8,6 +8,21 @@
 
 export type GainerRow = { symbol: string; name: string; changePct: string };
 
+/**
+ * Thrown when a model hit its token cap mid-response.
+ *
+ * This existed silently and cost real money: analyzeTheme asked for 4-8 eggs
+ * with full theses inside max_tokens:3000, the reply was cut off mid-JSON,
+ * parsing returned null, and the caller reported "0 eggs" — after paying for
+ * the premium call. Truncation must be loud, not a shrug.
+ */
+export class LlmTruncatedError extends Error {
+  constructor(public readonly chars: number) {
+    super(`Model response hit the token cap after ${chars} chars — raise maxTokens for this call`);
+    this.name = "LlmTruncatedError";
+  }
+}
+
 export interface QuotesProvider {
   /** Latest price per ticker. Batched — never one request per ticker if avoidable. */
   quotes(tickers: string[]): Promise<Record<string, number>>;

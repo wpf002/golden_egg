@@ -9,6 +9,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { env } from "../../config";
+import { LlmTruncatedError } from "./types";
 
 export type LlmTier = "cheap" | "premium";
 
@@ -29,7 +30,11 @@ class AnthropicProvider implements LlmProvider {
       max_tokens: opts.maxTokens ?? 3000,
       messages: [{ role: "user", content: prompt }],
     });
-    return message.content.map((b: any) => (b.type === "text" ? b.text : "")).join("\n");
+    const text = message.content.map((b: any) => (b.type === "text" ? b.text : "")).join("\n");
+    // A cut-off reply is usually unparseable JSON. Surfacing it turns a silent
+    // "0 results" (after paying for the call) into an actionable error.
+    if (message.stop_reason === "max_tokens") throw new LlmTruncatedError(text.length);
+    return text;
   }
 }
 
@@ -46,7 +51,10 @@ class OpenAIProvider implements LlmProvider {
       max_tokens: opts.maxTokens ?? 3000,
       messages: [{ role: "user", content: prompt }],
     });
-    return resp.choices[0]?.message?.content ?? "";
+    const choice = resp.choices[0];
+    const text = choice?.message?.content ?? "";
+    if (choice?.finish_reason === "length") throw new LlmTruncatedError(text.length);
+    return text;
   }
 }
 
@@ -56,6 +64,13 @@ class OpenAIProvider implements LlmProvider {
 let _llm: LlmProvider | null = null;
 export function getLlm(): LlmProvider {
   if (_llm) return _llm;
-  _llm = env.LLM_PROVIDER === "openai" ? new OpenAIProvider() : new AnthropicProvider();
+  // Read the env at call time so tests can flip provider between cases.
+  const provider = process.env.LLM_PROVIDER ?? env.LLM_PROVIDER;
+  _llm = provider === "openai" ? new OpenAIProvider() : new AnthropicProvider();
   return _llm;
+}
+
+/** Test seam: drop the memoized provider so an env change takes effect. */
+export function __resetLlm(): void {
+  _llm = null;
 }

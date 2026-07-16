@@ -204,6 +204,57 @@ describe("processCatalysts — canonical themes (the cache-hit invariant)", () =
   });
 });
 
+describe("processCatalysts — triage retires rejected catalysts", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getCache.mockResolvedValue(undefined);
+  });
+
+  it("REGRESSION: marks a REJECTED catalyst analyzed so it isn't reconsidered forever", async () => {
+    // Only theme-group members used to be marked, so rejects stayed
+    // rippleAnalyzed=false: re-classified every scan and permanently occupying
+    // the per-run cap. With a strict vocabulary most catalysts are rejected, so
+    // the backlog grew until no new catalyst could ever be analyzed.
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap" ? classifierIdResponse([[1, 0]]) : ONE_EGG
+    );
+    const stats = await processCatalysts([catalyst(1, "monetary policy")], 100);
+    expect(stats.catalystsRejected).toBe(1);
+    expect(mocks.markCatalystAnalyzed).toHaveBeenCalledWith(1, 0, undefined);
+  });
+
+  it("marks a catalyst rejected for LOW STRENGTH, keeping the theme it was placed under", async () => {
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap"
+        ? JSON.stringify({
+            results: [{ catalyst_id: 1, keep: true, theme_id: 2, strength: 0.1, rationale: "weak" }],
+          })
+        : ONE_EGG
+    );
+    const stats = await processCatalysts([catalyst(1, "x")], 100);
+    expect(stats.catalystsKept).toBe(0);
+    expect(stats.catalystsRejected).toBe(1);
+    // Low strength doesn't make the subject unknown — rollups still want the theme.
+    expect(mocks.markCatalystAnalyzed).toHaveBeenCalledWith(1, 0, CANONICAL_THEMES[1]);
+  });
+
+  it("every classified catalyst is accounted for as kept or rejected", async () => {
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap"
+        ? classifierIdResponse([
+            [1, 1],
+            [2, 0],
+            [3, 0],
+          ])
+        : ONE_EGG
+    );
+    const stats = await processCatalysts([catalyst(1, "a"), catalyst(2, "b"), catalyst(3, "c")], 100);
+    expect(stats.catalystsKept + stats.catalystsRejected).toBe(3);
+    // No catalyst is left unmarked to clog the next scan's cap.
+    expect(mocks.markCatalystAnalyzed).toHaveBeenCalledTimes(3);
+  });
+});
+
 describe("processCatalysts — cache behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();

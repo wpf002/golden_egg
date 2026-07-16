@@ -267,8 +267,16 @@ Return ONLY valid JSON of shape:
 }`;
 
   try {
-    const text = await getLlm().complete(prompt, { tier: "premium", maxTokens: 3000 });
+    // The prompt asks for 4-8 eggs, each with a thesis and a ripple path. At
+    // 3000 the reply was cut off mid-JSON, parsing failed, and every premium
+    // call silently produced zero eggs — after being paid for. Measured: a real
+    // reply runs ~5k characters, so give it real headroom.
+    const text = await getLlm().complete(prompt, { tier: "premium", maxTokens: 8000 });
     const parsed = extractJson(text) as RippleOutput | null;
+    if (parsed === null) {
+      // Distinguish "model said nothing useful" from "we failed to read it".
+      logger.warn({ theme, chars: text.length }, "analyzeTheme: response did not parse as JSON");
+    }
     return parsed ?? { eggs: [] };
   } catch (e) {
     logger.warn({ err: e, theme }, "analyzeTheme failed — returning no eggs");
@@ -282,6 +290,8 @@ Return ONLY valid JSON of shape:
 export type ScanStats = {
   catalystsProcessed: number;
   catalystsKept: number;
+  /** Triaged out (not material, or no canonical theme). Marked so they aren't reconsidered. */
+  catalystsRejected: number;
   themesAnalyzed: number;
   cacheHits: number;
   eggsCreated: number;
@@ -297,6 +307,7 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
   const stats: ScanStats = {
     catalystsProcessed: catalysts.length,
     catalystsKept: 0,
+    catalystsRejected: 0,
     themesAnalyzed: 0,
     cacheHits: 0,
     eggsCreated: 0,
@@ -310,6 +321,26 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
   stats.approxCredits += Math.ceil(catalysts.length * 0.5);
   const keeps = classified.filter((c) => c.keep && c.strength > 0.4);
   stats.catalystsKept = keeps.length;
+
+  // Retire the ones we're not analyzing.
+  //
+  // Only catalysts inside a theme group used to be marked, so a rejected
+  // catalyst stayed rippleAnalyzed=false forever: re-classified on every scan,
+  // and permanently occupying a slot under the per-run cap. With a strict
+  // canonical vocabulary most catalysts ARE rejected, so the backlog grew until
+  // the cap was pure rejects and no new catalyst could ever be analyzed.
+  // Triage is a decision — record it.
+  const keptIds = new Set(keeps.map((k) => k.catalyst_id));
+  const rejected = classified.filter((c) => !keptIds.has(c.catalyst_id));
+  for (const r of rejected) {
+    // Keep the theme when the classifier managed to place it — rejecting for
+    // low strength doesn't make the subject unknown, and rollups still want it.
+    await storage.markCatalystAnalyzed(r.catalyst_id, 0, r.normalized_theme || undefined);
+  }
+  stats.catalystsRejected = rejected.length;
+  if (rejected.length > 0) {
+    logger.info({ rejected: rejected.length, kept: keeps.length }, "catalysts triaged");
+  }
 
   // Group by normalized theme
   const themeGroups = new Map<string, { theme: string; catalysts: Catalyst[]; strength: number }>();
