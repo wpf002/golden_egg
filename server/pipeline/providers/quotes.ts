@@ -9,6 +9,9 @@
  * The pipeline batches: `quotes()` takes many tickers at once.
  */
 import { env } from "../../config";
+import { log } from "../../logger";
+
+const logger = log("quotes");
 
 export type GainerRow = { symbol: string; name: string; changePct: string };
 
@@ -69,7 +72,7 @@ class FinnhubProvider implements QuotesProvider {
             const p = q?.c; // current price
             if (Number.isFinite(p) && p > 0) out[sym] = p;
           } catch (e) {
-            console.warn(`[quotes] finnhub quote ${sym} failed:`, (e as Error).message);
+            logger.warn({ err: e, symbol: sym }, "finnhub quote failed");
           }
         })
       );
@@ -98,10 +101,7 @@ class FinnhubProvider implements QuotesProvider {
       out.sort((a, b) => a.date.localeCompare(b.date));
       return out;
     } catch (e) {
-      console.warn(
-        `[quotes] finnhub ohlcv ${ticker} failed (candles need a paid plan):`,
-        (e as Error).message
-      );
+      logger.warn({ err: e, ticker }, "finnhub ohlcv failed (candles require a paid plan)");
       return [];
     }
   }

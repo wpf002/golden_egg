@@ -19,6 +19,9 @@ import type {
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import { eq, desc, sql } from "drizzle-orm";
+import { log } from "./logger";
+
+const logger = log("storage");
 
 const sqlite = new Database("data.db");
 sqlite.pragma("journal_mode = WAL");
@@ -29,10 +32,10 @@ function addColumnIfMissing(table: string, col: string, decl: string) {
     const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
     if (!cols.some((c) => c.name === col)) {
       sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${decl}`);
-      console.log(`[migrate] added ${table}.${col}`);
+      logger.info({ table, col }, "migration: column added");
     }
   } catch (e) {
-    console.warn(`[migrate] ${table}.${col}:`, (e as Error).message);
+    logger.warn({ err: e, table, col }, "migration failed");
   }
 }
 addColumnIfMissing("golden_eggs", "current_price", "REAL");
@@ -90,6 +93,16 @@ export interface IStorage {
   deleteCache(themeHash: string): Promise<void>;
 
   // Scan runs
+  /**
+   * Atomically claim the single "running" scan slot. Returns the new run, or
+   * the in-flight run if one is already active. A run older than staleMs is
+   * treated as abandoned (server died mid-scan) and force-failed so a crash
+   * can't block scanning forever.
+   */
+  tryStartScanRun(
+    nowTs: number,
+    staleMs: number
+  ): Promise<{ ok: true; run: ScanRun } | { ok: false; running: ScanRun }>;
   createScanRun(r: InsertScanRun): Promise<ScanRun>;
   finishScanRun(id: number, patch: Partial<ScanRun>): Promise<void>;
   listScanRuns(limit?: number): Promise<ScanRun[]>;
@@ -294,6 +307,55 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Scan runs
+  async tryStartScanRun(nowTs: number, staleMs: number) {
+    // better-sqlite3 is synchronous, so this whole check-and-insert runs as one
+    // atomic transaction — no window for two concurrent requests to both start
+    // a scan (and both spend credits).
+    return db.transaction((tx): { ok: true; run: ScanRun } | { ok: false; running: ScanRun } => {
+      // There may be MORE than one "running" row (e.g. an abandoned run from a
+      // previous crash alongside a live one), so inspect them all: block if any
+      // is still fresh, and only then clean up the stale ones. Reading a single
+      // arbitrary row here would let a live scan slip through.
+      const runningRows = tx
+        .select()
+        .from(scanRuns)
+        .where(eq(scanRuns.status, "running"))
+        .orderBy(desc(scanRuns.startedAt))
+        .all();
+
+      const live = runningRows.find((r) => nowTs - r.startedAt < staleMs);
+      if (live) return { ok: false, running: live };
+
+      // Every running row is older than staleMs: those processes died mid-scan.
+      // Force-fail them all rather than letting them block scanning forever.
+      for (const r of runningRows) {
+        tx.update(scanRuns)
+          .set({
+            status: "error",
+            finishedAt: nowTs,
+            errorMessage: "abandoned — no completion recorded (server likely restarted mid-scan)",
+          })
+          .where(eq(scanRuns.id, r.id))
+          .run();
+      }
+      const run = tx
+        .insert(scanRuns)
+        .values({
+          startedAt: nowTs,
+          finishedAt: null,
+          catalystsIngested: 0,
+          catalystsNew: 0,
+          eggsCreated: 0,
+          cacheHits: 0,
+          approxCredits: 0,
+          status: "running",
+          errorMessage: null,
+        })
+        .returning()
+        .get();
+      return { ok: true, run };
+    });
+  }
   async createScanRun(r: InsertScanRun) {
     return db.insert(scanRuns).values(r).returning().get();
   }

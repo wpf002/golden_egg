@@ -11,6 +11,9 @@ import crypto from "node:crypto";
 import { storage } from "../storage";
 import type { InsertCatalyst } from "@shared/schema";
 import { getQuotes } from "./providers/quotes";
+import { log } from "../logger";
+
+const logger = log("ingest");
 
 export type CatalystCandidate = Omit<InsertCatalyst, "id" | "rippleAnalyzed" | "rippleCostCredits">;
 
@@ -68,7 +71,7 @@ export async function ingestSecEightK(themes: string[], perTheme = 3): Promise<C
         });
       }
     } catch (e) {
-      console.warn(`SEC ingest failed for ${theme}:`, (e as Error).message);
+      logger.warn({ err: e, theme }, "SEC ingest failed");
     }
   }
   return out;
@@ -138,7 +141,7 @@ export async function ingestRss(): Promise<CatalystCandidate[]> {
         });
       }
     } catch (e) {
-      console.warn(`RSS ingest failed for ${feed.source}:`, (e as Error).message);
+      logger.warn({ err: e, source: feed.source }, "RSS ingest failed");
     }
   }
   return out;
@@ -171,7 +174,7 @@ export async function ingestMarketSignals(): Promise<CatalystCandidate[]> {
       });
     }
   } catch (e) {
-    console.warn("Market signal ingest failed:", (e as Error).message);
+    logger.warn({ err: e }, "market signal ingest failed");
   }
   return out;
 }

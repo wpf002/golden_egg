@@ -1,9 +1,10 @@
 import type { Express } from "express";
 import type { Server } from "node:http";
 import { storage } from "./storage";
-import { runFullScan } from "./pipeline/scan";
+import { runFullScan, ScanInProgressError } from "./pipeline/scan";
 import { insertWatchlistSchema } from "@shared/schema";
 import { fetchQuotes, fetchDailyCloses, toYmd } from "./pipeline/finance";
+import { parseId, eggQuerySchema, zodMessage } from "./middleware/validate";
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   // ---------- Catalysts ----------
@@ -18,7 +19,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/catalysts/:id", async (req, res) => {
     try {
-      const id = Number(req.params.id);
+      const id = parseId(req.params.id, res);
+      if (id === null) return;
       const c = await storage.getCatalyst(id);
       if (!c) return res.status(404).json({ error: "not found" });
       const eggs = await storage.getEggsForCatalyst(id);
@@ -31,10 +33,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // ---------- Golden Eggs ----------
   app.get("/api/eggs", async (req, res) => {
     try {
-      const minConfidence = req.query.minConfidence ? Number(req.query.minConfidence) : undefined;
-      const sector = typeof req.query.sector === "string" ? req.query.sector : undefined;
-      const limit = req.query.limit ? Number(req.query.limit) : undefined;
-      const rows = await storage.listEggs({ minConfidence, sector, limit });
+      const q = eggQuerySchema.safeParse(req.query);
+      if (!q.success) return res.status(400).json({ error: zodMessage(q.error) });
+      const rows = await storage.listEggs(q.data);
       res.json(rows);
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
@@ -43,7 +44,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/eggs/:id", async (req, res) => {
     try {
-      const id = Number(req.params.id);
+      const id = parseId(req.params.id, res);
+      if (id === null) return;
       const egg = await storage.getEgg(id);
       if (!egg) return res.status(404).json({ error: "not found" });
       res.json(egg);
@@ -232,13 +234,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const w = await storage.addToWatchlist(body);
       res.json(w);
     } catch (e) {
-      res.status(400).json({ error: (e as Error).message });
+      res.status(400).json({ error: zodMessage(e) });
     }
   });
 
   app.delete("/api/watchlist/:eggId", async (req, res) => {
     try {
-      await storage.removeFromWatchlist(Number(req.params.eggId));
+      const eggId = parseId(req.params.eggId, res, "eggId");
+      if (eggId === null) return;
+      await storage.removeFromWatchlist(eggId);
       res.json({ ok: true });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
@@ -267,6 +271,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const result = await runFullScan();
       res.json(result);
     } catch (e) {
+      // A scan is already in flight — 409 rather than starting a second one
+      // and double-spending credits.
+      if (e instanceof ScanInProgressError) {
+        return res.status(409).json({
+          error: "A scan is already running. Wait for it to finish before starting another.",
+          runId: e.runId,
+          startedAt: e.startedAt,
+        });
+      }
       res.status(500).json({ error: (e as Error).message });
     }
   });

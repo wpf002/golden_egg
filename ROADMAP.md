@@ -102,22 +102,40 @@ once upstream tightens the range.
 
 ---
 
-## Phase 2 — Product hardening  *(~2–4 days)*
+## Phase 2 — Product hardening  ✅ *(done 2026-07-16)*
 
 Make it feel like a product, not a demo.
 
-- [ ] **Error boundaries** — wrap the router; add a fallback UI. None exist today.
-- [ ] **Consistent loading/error states** — `Overview`, `Graph`, and the `Catalysts` list render blank while
-      loading and have no `isError` UI. Standardize skeleton + error components.
-- [ ] **Structured logging** — replace `console.*` with `pino` (leveled, JSON in prod, pretty in dev).
-- [ ] **Request validation** — every mutating route validates its body with Zod (some already do; make it uniform).
-- [ ] **Rate limiting + basic hardening** — `express-rate-limit` on scan/backtest, `helmet`, CORS policy.
-- [ ] **Scan concurrency guard** — reject a new `/api/scan/run` while one is `running` (the scan-runs table
-      already tracks status; enforce it). Prevents double credit spend.
-- [ ] **Enforced per-run cost ceiling** — the `slice(0, 25)` cap in `scan.ts:34` is the only guard; make the
-      budget explicit and configurable, and surface "credits remaining" honestly.
+- [x] **Error boundaries** — `ErrorBoundary` wraps the router inside `AppShell`, so a page crash keeps the
+      nav usable instead of blanking the app.
+- [x] **Consistent loading/error states** — shared `QueryState.tsx` (`LoadingSkeleton` / `ErrorState` /
+      `EmptyState`). Wired into `Overview`, `Graph`, and `Catalysts`, which previously defaulted data to `[]`
+      and rendered nothing — a failed fetch was indistinguishable from "no results". Consolidated the
+      duplicate local `EmptyState` in `Overview`.
+- [x] **Structured logging** — `pino` (pretty in dev, JSON in prod) with secret redaction. Replaced the
+      hand-rolled logger that dumped whole JSON response bodies into every log line.
+      `config.ts` keeps `console` (the logger imports it — bootstrap ordering); `seed.ts` is a CLI.
+- [x] **Request validation** — `middleware/validate.ts`. Routes previously did `Number(req.params.id)` and
+      passed `NaN` to the DB; ids and query params are now parsed-or-400.
+- [x] **Rate limiting + basic hardening** — `helmet` + `express-rate-limit` (300/min general, 5/min on the
+      credit-spending routes). CSP is deliberately off: a real one must be authored against the built Vite
+      output — that's Phase 4, not a drive-by default that breaks the app.
+- [x] **Scan concurrency guard** — atomic claim in a SQLite transaction (`tryStartScanRun`), 409 on conflict.
+      Stale runs (>30 min) are reclaimed so a mid-scan crash can't block scanning forever.
+- [x] **Enforced per-run cost ceiling** — `SCAN_MAX_CATALYSTS` / `SCAN_MAX_CREDITS` env knobs replace the
+      magic `slice(0, 25)`. The run stops analyzing before it would exceed the budget, reports
+      `budgetExhausted`, and defers the rest to the next scan.
 
-*Exit criteria:* a user hitting an error sees a graceful message; no way to accidentally double-spend credits.
+**Bug caught while verifying the guard end-to-end** (it shipped broken and testing found it): the first
+implementation read a *single arbitrary* `running` row. The live DB had two — an abandoned run from an
+earlier crash plus a live one — so it grabbed the stale one, force-failed it, and started a **second
+concurrent scan anyway**, spending credits. Now it inspects all running rows, blocks if any is live, and
+reclaims every stale one. Pinned by a regression test in `scan-guard.test.ts`.
+
+*Exit criteria met:* errors degrade gracefully; double-spending a scan is blocked (verified 409 live).
+
+**Deferred:** no CORS policy — the API is same-origin only; it becomes relevant if a separate frontend
+origin ever ships (Phase 4).
 
 ---
 

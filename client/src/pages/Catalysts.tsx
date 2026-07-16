@@ -5,9 +5,11 @@ import { ExternalLink, CheckCircle2, Clock, ChevronDown, ChevronRight } from "lu
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { EggDetailSheet } from "@/components/EggDetailSheet";
+import { LoadingSkeleton, ErrorState, EmptyState } from "@/components/QueryState";
 
 export default function CatalystsPage() {
-  const { data: catalysts = [] } = useQuery<Catalyst[]>({ queryKey: ["/api/catalysts"] });
+  const catalystsQ = useQuery<Catalyst[]>({ queryKey: ["/api/catalysts"] });
+  const catalysts = catalystsQ.data ?? [];
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [openEggId, setOpenEggId] = useState<number | null>(null);
@@ -40,6 +42,23 @@ export default function CatalystsPage() {
           {filtered.length} catalysts · {catalysts.filter((c) => c.rippleAnalyzed).length} analyzed
         </div>
       </div>
+
+      {catalystsQ.error && (
+        <ErrorState
+          error={catalystsQ.error}
+          label="Couldn't load catalysts"
+          onRetry={() => catalystsQ.refetch()}
+        />
+      )}
+
+      {!catalystsQ.error && catalystsQ.isLoading && <LoadingSkeleton rows={5} />}
+
+      {!catalystsQ.error && !catalystsQ.isLoading && filtered.length === 0 && (
+        <EmptyState
+          message={search ? "No catalysts match that search." : "No catalysts yet."}
+          hint={search ? undefined : "Run a scan to pull in fresh signals."}
+        />
+      )}
 
       <div className="flex flex-col gap-3">
         {filtered.map((c) => (

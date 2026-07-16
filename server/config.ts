@@ -22,9 +22,15 @@ const schema = z.object({
   QUOTES_PROVIDER: z.enum(["finnhub"]).default("finnhub"),
   FINNHUB_API_KEY: z.string().min(1).optional(),
 
+  // Scan cost controls — credits are the scarcest resource, so the per-run
+  // ceiling is explicit and configurable rather than a magic number in scan.ts.
+  SCAN_MAX_CATALYSTS: z.coerce.number().int().positive().default(25),
+  SCAN_MAX_CREDITS: z.coerce.number().int().positive().default(400),
+
   // Server
   PORT: z.coerce.number().default(5000),
   NODE_ENV: z.string().default("development"),
+  LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
 });
 
 const parsed = schema.safeParse(process.env);

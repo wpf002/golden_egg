@@ -12,6 +12,7 @@ import CatalystsPage from "@/pages/Catalysts";
 import GraphPage from "@/pages/Graph";
 import WatchlistPage from "@/pages/Watchlist";
 import BacktestPage from "@/pages/Backtest";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 function AppRouter() {
   return (
@@ -34,7 +35,10 @@ function App() {
         <Toaster />
         <Router hook={useHashLocation}>
           <AppShell>
-            <AppRouter />
+            {/* Inside AppShell so a page crash keeps the nav usable. */}
+            <ErrorBoundary>
+              <AppRouter />
+            </ErrorBoundary>
           </AppShell>
         </Router>
       </TooltipProvider>

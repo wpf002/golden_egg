@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import type { GraphNode, GraphEdge } from "@/lib/types";
 import { Input } from "@/components/ui/input";
+import { LoadingSkeleton, ErrorState } from "@/components/QueryState";
 
 /**
  * A lightweight interactive graph view — no D3, just SVG + a simple
@@ -9,9 +10,9 @@ import { Input } from "@/components/ui/input";
  * Click a node to focus its supply-chain ripple network.
  */
 export default function GraphPage() {
-  const { data } = useQuery<{ nodes: GraphNode[]; edges: GraphEdge[] }>({ queryKey: ["/api/graph"] });
-  const nodes = data?.nodes ?? [];
-  const edges = data?.edges ?? [];
+  const graphQ = useQuery<{ nodes: GraphNode[]; edges: GraphEdge[] }>({ queryKey: ["/api/graph"] });
+  const nodes = graphQ.data?.nodes ?? [];
+  const edges = graphQ.data?.edges ?? [];
 
   const [search, setSearch] = useState("");
   const [focus, setFocus] = useState<string | null>(null);
@@ -80,6 +81,22 @@ export default function GraphPage() {
           (n.ticker ?? "").toLowerCase().includes(search.toLowerCase())
       )
     : [];
+
+  if (graphQ.error) {
+    return (
+      <div className="px-8 py-8 max-w-[1400px] mx-auto">
+        <ErrorState error={graphQ.error} label="Couldn't load the graph" onRetry={() => graphQ.refetch()} />
+      </div>
+    );
+  }
+
+  if (graphQ.isLoading) {
+    return (
+      <div className="px-8 py-8 max-w-[1400px] mx-auto">
+        <LoadingSkeleton rows={5} />
+      </div>
+    );
+  }
 
   return (
     <div className="px-8 py-8 max-w-[1400px] mx-auto">

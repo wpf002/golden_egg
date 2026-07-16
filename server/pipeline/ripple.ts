@@ -18,6 +18,9 @@ import { fetchQuotes } from "./finance";
 import { getLlm } from "./providers/llm";
 import { env } from "../config";
 import { coerceToCanonical, extractJson } from "./ripple-utils";
+import { log } from "../logger";
+
+const logger = log("ripple");
 
 // Re-exported for callers/tests that import them from the pipeline entrypoint.
 export { coerceToCanonical, extractJson };
@@ -83,7 +86,7 @@ Return ONLY a JSON object of shape: { "results": [{ "catalyst_id": N, "keep": bo
     const results = (parsed?.results ?? []) as ClassifiedCatalyst[];
     return results.map((r) => ({ ...r, normalized_theme: coerceToCanonical(r.normalized_theme || "") }));
   } catch (e) {
-    console.warn("classifyCatalysts failed:", (e as Error).message);
+    logger.warn({ err: e, count: catalysts.length }, "classifyCatalysts failed — rejecting batch");
     return catalysts.map((c) => ({
       catalyst_id: c.id,
       keep: false,
@@ -201,7 +204,7 @@ Return ONLY valid JSON of shape:
     const parsed = extractJson(text) as RippleOutput | null;
     return parsed ?? { eggs: [] };
   } catch (e) {
-    console.warn("analyzeTheme failed:", (e as Error).message);
+    logger.warn({ err: e, theme }, "analyzeTheme failed — returning no eggs");
     return { eggs: [] };
   }
 }
@@ -216,9 +219,14 @@ export type ScanStats = {
   cacheHits: number;
   eggsCreated: number;
   approxCredits: number;
+  /** True when the run stopped analyzing themes because it hit maxCredits. */
+  budgetExhausted: boolean;
 };
 
-export async function processCatalysts(catalysts: Catalyst[]): Promise<ScanStats> {
+/** Approximate credit cost of one premium ripple analysis. */
+const PREMIUM_CALL_CREDITS = 15;
+
+export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infinity): Promise<ScanStats> {
   const stats: ScanStats = {
     catalystsProcessed: catalysts.length,
     catalystsKept: 0,
@@ -226,6 +234,7 @@ export async function processCatalysts(catalysts: Catalyst[]): Promise<ScanStats
     cacheHits: 0,
     eggsCreated: 0,
     approxCredits: 0,
+    budgetExhausted: false,
   };
   if (catalysts.length === 0) return stats;
 
@@ -268,6 +277,17 @@ export async function processCatalysts(catalysts: Catalyst[]): Promise<ScanStats
         output = { eggs: [] };
       }
     } else {
+      // Credit ceiling: a cache miss means a premium call. If that would blow
+      // the run's budget, stop analyzing new themes and leave the remaining
+      // catalysts unanalyzed so the next scan picks them up.
+      if (stats.approxCredits + PREMIUM_CALL_CREDITS > maxCredits) {
+        stats.budgetExhausted = true;
+        logger.warn(
+          { spent: stats.approxCredits, maxCredits, theme: group.theme },
+          "credit ceiling reached \u2014 deferring remaining themes to the next scan"
+        );
+        break;
+      }
       if (cached) {
         // stale \u2014 remove before re-inserting
         await storage.deleteCache(th);
@@ -278,7 +298,7 @@ export async function processCatalysts(catalysts: Catalyst[]): Promise<ScanStats
         .slice(0, 800);
       output = await analyzeTheme(group.theme, summary);
       stats.themesAnalyzed++;
-      stats.approxCredits += 15;
+      stats.approxCredits += PREMIUM_CALL_CREDITS;
       // Only cache non-empty results. An empty output (thin theme, transient
       // model hiccup) would otherwise poison this theme for the full 30-day TTL;
       // leaving it uncached lets a future catalyst on the same theme retry.
