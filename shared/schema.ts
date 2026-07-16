@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -87,7 +87,8 @@ export const goldenEggs = sqliteTable(
     confidence: real("confidence").notNull(), // 0-1
     noveltyScore: real("novelty_score").notNull().default(0.5), // higher = less obvious
     timingLag: text("timing_lag").notNull(), // "leading" | "concurrent" | "lagging"
-    sector: text("sector"),
+    sector: text("sector"), // coerced to CANONICAL_SECTORS — safe to group by
+    sectorDetail: text("sector_detail"), // the model's original, e.g. "Industrials / Cash Logistics"
     ripplePath: text("ripple_path"), // JSON: [{node, relation}, ...] the chain from catalyst to ticker
     priceAtFlag: real("price_at_flag"), // set when we first flag it
     priceAtFlagDate: integer("price_at_flag_date"),
@@ -99,6 +100,10 @@ export const goldenEggs = sqliteTable(
     catIdx: index("eggs_catalyst_idx").on(t.catalystId),
     tickerIdx: index("eggs_ticker_idx").on(t.ticker),
     confIdx: index("eggs_confidence_idx").on(t.confidence),
+    // One catalyst yields at most one egg per ticker. The same ticker across
+    // *different* catalysts is legitimate (different theses), so this is
+    // deliberately a composite key rather than a unique ticker.
+    catTickerUnique: uniqueIndex("eggs_catalyst_ticker_unique").on(t.catalystId, t.ticker),
   })
 );
 
@@ -209,6 +214,31 @@ export type GoldenEggWithCatalyst = GoldenEgg & {
 
 // Canonical theme names — the classifier MUST pick one.
 // Keeping this list tight is the primary cache-hit lever.
+/**
+ * Canonical sectors — GICS-style top level, plus "Other".
+ *
+ * Same lever as CANONICAL_THEMES: the model emits freeform sectors
+ * ("Technology / FinTech Compliance", "Energy Midstream / MLP"), which produced
+ * 46 distinct values across 79 eggs and a heatmap that was mostly count-1 cells.
+ * Rollups need a bounded vocabulary. The model's original string is preserved in
+ * goldenEggs.sectorDetail, so the specificity isn't lost — just moved.
+ */
+export const CANONICAL_SECTORS = [
+  "Energy",
+  "Materials",
+  "Industrials",
+  "Utilities",
+  "Healthcare",
+  "Financials",
+  "Technology",
+  "Communication Services",
+  "Consumer Discretionary",
+  "Consumer Staples",
+  "Real Estate",
+  "Other",
+] as const;
+export type CanonicalSector = (typeof CANONICAL_SECTORS)[number];
+
 export const CANONICAL_THEMES = [
   "AI datacenter buildout",
   "Grid & power infrastructure",

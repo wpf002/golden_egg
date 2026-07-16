@@ -6,7 +6,7 @@
  * The sandbox `external-tool` CLI dependency has been removed — the backend is
  * Finnhub, selected via QUOTES_PROVIDER.
  */
-import { getQuotes } from "./providers/quotes";
+import { getQuotes, getCandles } from "./providers/quotes";
 
 /** Fetch latest price for tickers. Returns { TICKER: price } (numbers). Batched. */
 export async function fetchQuotes(tickers: string[]): Promise<Record<string, number>> {
@@ -20,7 +20,8 @@ export async function fetchDailyCloses(
   startYmd: string,
   endYmd: string
 ): Promise<{ date: string; close: number }[]> {
-  return getQuotes().ohlcv(ticker, startYmd, endYmd);
+  // Candles resolve independently of spot quotes — see providers/quotes.ts.
+  return getCandles().ohlcv(ticker, startYmd, endYmd);
 }
 
 /** ymd for a given unix ms timestamp. */

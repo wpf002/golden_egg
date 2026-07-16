@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { coerceToCanonical, extractJson } from "./ripple-utils";
-import { CANONICAL_THEMES } from "@shared/schema";
+import { coerceToCanonical, extractJson, coerceToSector } from "./ripple-utils";
+import { CANONICAL_THEMES, CANONICAL_SECTORS } from "@shared/schema";
 
 describe("coerceToCanonical", () => {
   it("passes through an exact canonical theme unchanged", () => {
@@ -37,6 +37,99 @@ describe("coerceToCanonical", () => {
     for (const theme of CANONICAL_THEMES) {
       expect(coerceToCanonical(theme)).toBe(theme);
     }
+  });
+});
+
+describe("coerceToSector", () => {
+  it("passes through an exact canonical sector", () => {
+    expect(coerceToSector("Industrials")).toBe("Industrials");
+    expect(coerceToSector("Real Estate")).toBe("Real Estate");
+  });
+
+  it("takes the root before the slash", () => {
+    expect(coerceToSector("Technology / FinTech Compliance")).toBe("Technology");
+    expect(coerceToSector("Industrials / Cash Logistics")).toBe("Industrials");
+    expect(coerceToSector("Financials / Mortgage REIT")).toBe("Financials");
+  });
+
+  it("prefers the longest alias so 'energy midstream' doesn't just match 'energy'", () => {
+    // Both resolve to Energy here, but the ordering rule matters for future aliases.
+    expect(coerceToSector("Energy Midstream / MLP")).toBe("Energy");
+    expect(coerceToSector("Energy")).toBe("Energy");
+  });
+
+  it("maps the real non-GICS roots this dataset actually contains", () => {
+    expect(coerceToSector("Oilfield Services")).toBe("Energy");
+    expect(coerceToSector("Oilfield Services / Specialty Chemicals")).toBe("Energy");
+    expect(coerceToSector("Energy Services")).toBe("Energy");
+    expect(coerceToSector("Energy Technology")).toBe("Energy");
+    expect(coerceToSector("Midstream Energy")).toBe("Energy");
+    expect(coerceToSector("Midstream / MLP")).toBe("Energy");
+    expect(coerceToSector("Marine Transportation")).toBe("Industrials");
+    expect(coerceToSector("Financial Technology / RegTech")).toBe("Financials");
+    expect(coerceToSector("Financial Data & Analytics")).toBe("Financials");
+  });
+
+  it("is case-insensitive and tolerates whitespace", () => {
+    expect(coerceToSector("  industrials  ")).toBe("Industrials");
+    expect(coerceToSector("TECHNOLOGY / Analytics")).toBe("Technology");
+  });
+
+  it("falls back to Other instead of minting a new bucket", () => {
+    expect(coerceToSector("Underwater Basket Weaving")).toBe("Other");
+    expect(coerceToSector("")).toBe("Other");
+    expect(coerceToSector(null)).toBe("Other");
+    expect(coerceToSector(undefined)).toBe("Other");
+    expect(coerceToSector("   ")).toBe("Other");
+  });
+
+  it("always returns a member of CANONICAL_SECTORS (the rollup invariant)", () => {
+    const realWorldInputs = [
+      "Industrials",
+      "Financials",
+      "Utilities",
+      "Technology / Financials",
+      "Technology",
+      "Oilfield Services",
+      "Materials",
+      "Healthcare",
+      "Energy Services",
+      "Energy / Shipping",
+      "Energy",
+      "Utilities / Nuclear",
+      "Technology / HR Services",
+      "Real Estate / Office REIT",
+      "Midstream Energy",
+      "Materials / Specialty Chemicals",
+      "Marine Transportation",
+      "Industrials / Engineering & Construction",
+      "Financials / Non-bank Mortgage",
+      "Financial Technology / Regulatory Infrastructure",
+      "Financial Data & Analytics",
+      "Energy Midstream / MLP",
+      "Energy / LNG Infrastructure",
+      "Energy / Coal",
+      "Consumer Staples",
+      "garbage",
+    ];
+    for (const input of realWorldInputs) {
+      expect(CANONICAL_SECTORS).toContain(coerceToSector(input) as any);
+    }
+  });
+
+  it("collapses this dataset's 46 sectors into a small bounded set", () => {
+    const inputs = [
+      "Industrials",
+      "Technology / HR Services",
+      "Technology / Government",
+      "Oilfield Services",
+      "Midstream Energy",
+      "Energy / Coal",
+      "Marine Transportation",
+      "Financial Data & Analytics",
+    ];
+    const collapsed = new Set(inputs.map(coerceToSector));
+    expect(collapsed.size).toBeLessThanOrEqual(4);
   });
 });
 

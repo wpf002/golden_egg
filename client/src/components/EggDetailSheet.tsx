@@ -121,6 +121,15 @@ export function EggDetailSheet({ eggId, onClose }: { eggId: number | null; onClo
                   {egg.sector}
                 </span>
               )}
+              {/* The model's finer-grained label, when it says more than the bucket. */}
+              {egg.sectorDetail && egg.sectorDetail !== egg.sector && (
+                <span
+                  className="text-muted-foreground/80 normal-case tracking-normal"
+                  data-testid="text-sector-detail"
+                >
+                  {egg.sectorDetail}
+                </span>
+              )}
               <span className="text-muted-foreground inline-flex items-center gap-1">
                 <Clock size={10} /> {egg.timingLag}
               </span>

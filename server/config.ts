@@ -18,9 +18,18 @@ const schema = z.object({
   OPENAI_MODEL: z.string().default("gpt-4o"),
   OPENAI_CHEAP_MODEL: z.string().default("gpt-4o-mini"),
 
-  // Quotes / OHLCV
-  QUOTES_PROVIDER: z.enum(["finnhub"]).default("finnhub"),
+  // Quotes (spot prices, gainers)
+  QUOTES_PROVIDER: z.enum(["finnhub", "polygon"]).default("finnhub"),
   FINNHUB_API_KEY: z.string().min(1).optional(),
+
+  // Candles (daily closes: backtest, sparklines). Defaults to QUOTES_PROVIDER.
+  // Split from quotes because the free tiers are good at opposite things:
+  // Finnhub free has real-time quotes but no candles; Polygon free has candles
+  // but is EOD-only and rate-limited.
+  CANDLES_PROVIDER: z.enum(["finnhub", "polygon"]).optional(),
+  POLYGON_API_KEY: z.string().min(1).optional(),
+  /** Requests/minute allowed by the Polygon plan (free tier is ~5). */
+  POLYGON_RPM: z.coerce.number().int().positive().default(5),
 
   // Scan cost controls — credits are the scarcest resource, so the per-run
   // ceiling is explicit and configurable rather than a magic number in scan.ts.
@@ -53,6 +62,9 @@ if (!parsed.success) {
 export const env = parsed.data;
 export type Env = typeof env;
 
+/** Candles fall back to the quotes provider unless explicitly split. */
+export const candlesProvider = env.CANDLES_PROVIDER ?? env.QUOTES_PROVIDER;
+
 /**
  * Assert that the credentials required by the *selected* providers are present.
  * Call once at startup so a missing key is a boot-time error, not a mid-scan one.
@@ -61,13 +73,21 @@ export function validateProviders(): void {
   const missing: string[] = [];
   if (env.LLM_PROVIDER === "anthropic" && !env.ANTHROPIC_API_KEY) missing.push("ANTHROPIC_API_KEY");
   if (env.LLM_PROVIDER === "openai" && !env.OPENAI_API_KEY) missing.push("OPENAI_API_KEY");
-  if (env.QUOTES_PROVIDER === "finnhub" && !env.FINNHUB_API_KEY) missing.push("FINNHUB_API_KEY");
+
+  // A key is required if *either* role uses that provider.
+  const usesFinnhub = env.QUOTES_PROVIDER === "finnhub" || candlesProvider === "finnhub";
+  const usesPolygon = env.QUOTES_PROVIDER === "polygon" || candlesProvider === "polygon";
+  if (usesFinnhub && !env.FINNHUB_API_KEY) missing.push("FINNHUB_API_KEY");
+  if (usesPolygon && !env.POLYGON_API_KEY) missing.push("POLYGON_API_KEY");
 
   if (missing.length > 0) {
     throw new Error(
       `Missing required env for the selected providers: ${missing.join(", ")}. ` +
-        `Set them in .env (see .env.example). LLM_PROVIDER=${env.LLM_PROVIDER}, QUOTES_PROVIDER=${env.QUOTES_PROVIDER}.`
+        `Set them in .env (see .env.example). LLM_PROVIDER=${env.LLM_PROVIDER}, ` +
+        `QUOTES_PROVIDER=${env.QUOTES_PROVIDER}, CANDLES_PROVIDER=${candlesProvider}.`
     );
   }
-  console.log(`[config] providers OK — llm=${env.LLM_PROVIDER}, quotes=${env.QUOTES_PROVIDER}`);
+  console.log(
+    `[config] providers OK — llm=${env.LLM_PROVIDER}, quotes=${env.QUOTES_PROVIDER}, candles=${candlesProvider}`
+  );
 }

@@ -70,7 +70,8 @@ export interface IStorage {
   listAllEdges(): Promise<GraphEdge[]>;
 
   // Golden eggs
-  createEgg(e: InsertGoldenEgg): Promise<GoldenEgg>;
+  /** Insert an egg. Returns undefined if (catalystId, ticker) already exists. */
+  createEgg(e: InsertGoldenEgg): Promise<GoldenEgg | undefined>;
   listEggs(opts?: {
     minConfidence?: number;
     sector?: string;
@@ -183,7 +184,10 @@ export class DatabaseStorage implements IStorage {
 
   // Golden eggs
   async createEgg(e: InsertGoldenEgg) {
-    return db.insert(goldenEggs).values(e).returning().get();
+    // (catalystId, ticker) is unique. A model that repeats a ticker within one
+    // ripple output shouldn't abort the scan — skip the dupe and carry on.
+    // Returns undefined when the row already existed.
+    return db.insert(goldenEggs).values(e).onConflictDoNothing().returning().get();
   }
   async listEggs(opts: { minConfidence?: number; sector?: string; limit?: number } = {}) {
     const rows = db

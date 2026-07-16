@@ -24,7 +24,10 @@ export type GoldenEgg = {
   confidence: number;
   noveltyScore: number;
   timingLag: "leading" | "concurrent" | "lagging";
+  /** Canonical bucket (CANONICAL_SECTORS) — safe to group/filter by. */
   sector: string | null;
+  /** The model's original, more specific string, e.g. "Industrials / Cash Logistics". */
+  sectorDetail: string | null;
   ripplePath: string | null;
   priceAtFlag: number | null;
   priceAtFlagDate: number | null;

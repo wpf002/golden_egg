@@ -1,46 +1,27 @@
 /**
- * Quotes / OHLCV provider abstraction.
+ * Quotes / candles provider resolution.
  *
  * Replaces the sandbox `external-tool` finance connector with a pluggable
- * interface. Backend is Finnhub (keyed, reliable). Free tier covers real-time
- * `/quote`; historical candles and the gainers screener are paid-only, so those
- * methods degrade gracefully (warn + empty) rather than throw.
- *
- * The pipeline batches: `quotes()` takes many tickers at once.
+ * interface (see ./types.ts). Quotes and candles resolve *separately* because no
+ * free tier does both well:
+ *   - Finnhub free: real-time quotes (60/min), but candles are paid-only.
+ *   - Polygon free: daily candles, but end-of-day and ~5 req/min.
+ * CANDLES_PROVIDER defaults to QUOTES_PROVIDER, so a single-provider setup works
+ * unchanged.
  */
-import { env } from "../../config";
+import { env, candlesProvider } from "../../config";
 import { log } from "../../logger";
+import { type QuotesProvider, type GainerRow, withRetry } from "./types";
+import { PolygonProvider } from "./polygon";
+
+export type { QuotesProvider, GainerRow } from "./types";
 
 const logger = log("quotes");
 
-export type GainerRow = { symbol: string; name: string; changePct: string };
-
-export interface QuotesProvider {
-  quotes(tickers: string[]): Promise<Record<string, number>>;
-  ohlcv(ticker: string, startYmd: string, endYmd: string): Promise<{ date: string; close: number }[]>;
-  marketGainers(): Promise<GainerRow[]>;
-}
-
-// Transient failures (429/timeouts) get a couple of backoff retries before giving up.
-async function withRetry<T>(fn: () => Promise<T>, label: string, attempts = 3): Promise<T> {
-  let lastErr: unknown;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await fn();
-    } catch (e) {
-      lastErr = e;
-      const transient = /Too Many Requests|429|ETIMEDOUT|ECONNRESET|fetch failed/i.test((e as Error).message);
-      if (!transient || i === attempts - 1) break;
-      await new Promise((r) => setTimeout(r, 400 * 2 ** i)); // 400ms, 800ms
-    }
-  }
-  throw lastErr;
-}
-
 // ---------------------------------------------------------------
-// Finnhub (keyed, reliable)
+// Finnhub — real-time quotes on the free tier; no candles, no screener.
 // ---------------------------------------------------------------
-class FinnhubProvider implements QuotesProvider {
+export class FinnhubProvider implements QuotesProvider {
   private base = "https://finnhub.io/api/v1";
   private key = env.FINNHUB_API_KEY ?? "";
 
@@ -65,10 +46,7 @@ class FinnhubProvider implements QuotesProvider {
       await Promise.all(
         batch.map(async (sym) => {
           try {
-            const q = await withRetry(
-              () => this.get(`/quote?symbol=${encodeURIComponent(sym)}`),
-              "finnhub quote"
-            );
+            const q = await withRetry(() => this.get(`/quote?symbol=${encodeURIComponent(sym)}`));
             const p = q?.c; // current price
             if (Number.isFinite(p) && p > 0) out[sym] = p;
           } catch (e) {
@@ -84,12 +62,10 @@ class FinnhubProvider implements QuotesProvider {
     try {
       const from = Math.floor(new Date(startYmd + "T00:00:00Z").getTime() / 1000);
       const to = Math.floor(new Date(endYmd + "T23:59:59Z").getTime() / 1000);
-      const r = await withRetry(
-        () =>
-          this.get(
-            `/stock/candle?symbol=${encodeURIComponent(ticker.toUpperCase())}&resolution=D&from=${from}&to=${to}`
-          ),
-        "finnhub candle"
+      const r = await withRetry(() =>
+        this.get(
+          `/stock/candle?symbol=${encodeURIComponent(ticker.toUpperCase())}&resolution=D&from=${from}&to=${to}`
+        )
       );
       if (r?.s !== "ok" || !Array.isArray(r?.c)) return [];
       const out: { date: string; close: number }[] = [];
@@ -112,9 +88,30 @@ class FinnhubProvider implements QuotesProvider {
   }
 }
 
+// ---------------------------------------------------------------
+// Factories
+// ---------------------------------------------------------------
+function build(name: "finnhub" | "polygon"): QuotesProvider {
+  return name === "polygon" ? new PolygonProvider() : new FinnhubProvider();
+}
+
 let _quotes: QuotesProvider | null = null;
+let _candles: QuotesProvider | null = null;
+
+/** Provider for spot prices and gainers. */
 export function getQuotes(): QuotesProvider {
-  if (_quotes) return _quotes;
-  _quotes = new FinnhubProvider(); // extend here for polygon, etc.
+  if (!_quotes) _quotes = build(env.QUOTES_PROVIDER);
   return _quotes;
+}
+
+/** Provider for daily closes (backtest, sparklines). */
+export function getCandles(): QuotesProvider {
+  if (!_candles) _candles = build(candlesProvider);
+  return _candles;
+}
+
+/** Test seam: drop memoized providers so env changes take effect. */
+export function __resetProviders(): void {
+  _quotes = null;
+  _candles = null;
 }

@@ -17,13 +17,13 @@ import type { Catalyst, Node as GraphNode, Edge as GraphEdge } from "@shared/sch
 import { fetchQuotes } from "./finance";
 import { getLlm } from "./providers/llm";
 import { env } from "../config";
-import { coerceToCanonical, extractJson } from "./ripple-utils";
+import { coerceToCanonical, extractJson, coerceToSector } from "./ripple-utils";
 import { log } from "../logger";
 
 const logger = log("ripple");
 
 // Re-exported for callers/tests that import them from the pipeline entrypoint.
-export { coerceToCanonical, extractJson };
+export { coerceToCanonical, extractJson, coerceToSector };
 
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
@@ -316,8 +316,15 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
     }
 
     const anchor = group.catalysts[0];
+    // A model can repeat a ticker within one output. (catalystId, ticker) is
+    // unique in the DB, but drop dupes here so we don't waste an insert or
+    // double-count eggsCreated.
+    const seenTickers = new Set<string>();
     for (const e of output.eggs) {
       if (!e.ticker) continue;
+      const key = e.ticker.trim().toUpperCase();
+      if (!key || seenTickers.has(key)) continue;
+      seenTickers.add(key);
       eggsToCreate.push({ anchor, egg: e });
     }
     await storage.markCatalystAnalyzed(anchor.id, isFresh ? 0 : 15);
@@ -339,9 +346,9 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
   }
 
   for (const { anchor, egg: e } of eggsToCreate) {
-    const tk = e.ticker.toUpperCase();
+    const tk = e.ticker.trim().toUpperCase();
     const p = priceMap[tk];
-    await storage.createEgg({
+    const created = await storage.createEgg({
       catalystId: anchor.id,
       ticker: tk,
       companyName: e.company_name,
@@ -350,7 +357,10 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
       confidence: e.confidence,
       noveltyScore: e.novelty_score ?? 0.5,
       timingLag: e.timing_lag,
-      sector: e.sector,
+      // Canonical for rollups; the model's original string is kept alongside so
+      // detail like "Industrials / Cash Logistics" isn't lost.
+      sector: coerceToSector(e.sector),
+      sectorDetail: e.sector ?? null,
       ripplePath: JSON.stringify(e.ripple_path ?? []),
       priceAtFlag: Number.isFinite(p) ? p : null,
       priceAtFlagDate: Number.isFinite(p) ? nowTs : null,
@@ -358,7 +368,9 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
       priceRefreshedAt: Number.isFinite(p) ? nowTs : null,
       createdAt: nowTs,
     });
-    stats.eggsCreated++;
+    // undefined => the (catalystId, ticker) row already existed. Don't report it
+    // as created; eggsCreated should mean rows that actually landed.
+    if (created) stats.eggsCreated++;
   }
 
   return stats;
