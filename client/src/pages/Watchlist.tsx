@@ -5,7 +5,9 @@ import { EggCard } from "@/components/EggCard";
 import { EggDetailSheet } from "@/components/EggDetailSheet";
 
 export default function WatchlistPage() {
-  const { data: watchlist = [], isLoading } = useQuery<GoldenEggWithCatalyst[]>({ queryKey: ["/api/watchlist"] });
+  const { data: watchlist = [], isLoading } = useQuery<GoldenEggWithCatalyst[]>({
+    queryKey: ["/api/watchlist"],
+  });
   const [openEggId, setOpenEggId] = useState<number | null>(null);
 
   return (
@@ -27,7 +29,9 @@ export default function WatchlistPage() {
             Tracking {watchlist.length} {watchlist.length === 1 ? "position" : "positions"}
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {watchlist.map((e) => <EggCard key={e.id} egg={e} onOpen={setOpenEggId} />)}
+            {watchlist.map((e) => (
+              <EggCard key={e.id} egg={e} onOpen={setOpenEggId} />
+            ))}
           </div>
         </>
       )}

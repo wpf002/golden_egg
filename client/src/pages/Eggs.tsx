@@ -25,14 +25,16 @@ export default function EggsPage() {
     if (sector !== "all") out = out.filter((e) => e.sector === sector);
     if (search) {
       const q = search.toLowerCase();
-      out = out.filter((e) =>
-        e.ticker.toLowerCase().includes(q) ||
-        e.companyName.toLowerCase().includes(q) ||
-        e.thesis.toLowerCase().includes(q) ||
-        e.catalyst.theme.toLowerCase().includes(q),
+      out = out.filter(
+        (e) =>
+          e.ticker.toLowerCase().includes(q) ||
+          e.companyName.toLowerCase().includes(q) ||
+          e.thesis.toLowerCase().includes(q) ||
+          e.catalyst.theme.toLowerCase().includes(q)
       );
     }
-    if (sortBy === "score") out.sort((a, b) => b.confidence * (1 + b.noveltyScore) - a.confidence * (1 + a.noveltyScore));
+    if (sortBy === "score")
+      out.sort((a, b) => b.confidence * (1 + b.noveltyScore) - a.confidence * (1 + a.noveltyScore));
     else if (sortBy === "conf") out.sort((a, b) => b.confidence - a.confidence);
     else if (sortBy === "novelty") out.sort((a, b) => b.noveltyScore - a.noveltyScore);
     else if (sortBy === "recent") out.sort((a, b) => b.createdAt - a.createdAt);
@@ -50,13 +52,21 @@ export default function EggsPage() {
           data-testid="input-search-eggs"
         />
         <Select value={sector} onValueChange={setSector}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Sector" /></SelectTrigger>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Sector" />
+          </SelectTrigger>
           <SelectContent>
-            {sectors.map((s) => <SelectItem key={s} value={s}>{s === "all" ? "All sectors" : s}</SelectItem>)}
+            {sectors.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s === "all" ? "All sectors" : s}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={minConf} onValueChange={setMinConf}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Confidence" /></SelectTrigger>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Confidence" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="0">Any</SelectItem>
             <SelectItem value="0.5">≥ 50%</SelectItem>
@@ -65,7 +75,9 @@ export default function EggsPage() {
           </SelectContent>
         </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Sort" /></SelectTrigger>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Sort" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="score">Best score</SelectItem>
             <SelectItem value="conf">Confidence</SelectItem>
@@ -90,7 +102,9 @@ export default function EggsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4">
-          {filtered.map((egg) => <EggCard key={egg.id} egg={egg} onOpen={setOpenEggId} />)}
+          {filtered.map((egg) => (
+            <EggCard key={egg.id} egg={egg} onOpen={setOpenEggId} />
+          ))}
         </div>
       )}
       <EggDetailSheet eggId={openEggId} onClose={() => setOpenEggId(null)} />

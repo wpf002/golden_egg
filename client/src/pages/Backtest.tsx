@@ -27,9 +27,9 @@ export default function BacktestPage() {
     <div className="px-8 py-8 max-w-[1400px] mx-auto">
       <div className="mb-6 flex items-center gap-3 flex-wrap">
         <div className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
-          Pragmatic backtest: for every flagged egg, we compute return from the first close on or after its flag date
-          through the latest close. Results roll up by theme, sector, and hop distance. Uses daily closes fetched via
-          finance connector — one call per unique ticker.
+          Pragmatic backtest: for every flagged egg, we compute return from the first close on or after its
+          flag date through the latest close. Results roll up by theme, sector, and hop distance. Uses daily
+          closes fetched via finance connector — one call per unique ticker.
         </div>
         <Button
           onClick={() => runMut.mutate()}
@@ -47,7 +47,11 @@ export default function BacktestPage() {
           <StatCard label="Rows scored" value={String(result.overall.count)} />
           <StatCard label="Wins" value={String(result.overall.wins)} />
           <StatCard label="Win rate" value={`${(result.overall.winRate * 100).toFixed(1)}%`} accent="pos" />
-          <StatCard label="Median return" value={`${result.overall.medianReturn >= 0 ? "+" : ""}${result.overall.medianReturn.toFixed(1)}%`} accent={result.overall.medianReturn >= 0 ? "pos" : "neg"} />
+          <StatCard
+            label="Median return"
+            value={`${result.overall.medianReturn >= 0 ? "+" : ""}${result.overall.medianReturn.toFixed(1)}%`}
+            accent={result.overall.medianReturn >= 0 ? "pos" : "neg"}
+          />
         </div>
       )}
 
@@ -99,24 +103,40 @@ export default function BacktestPage() {
                   .slice()
                   .sort((a, b) => (b.returnPct ?? -Infinity) - (a.returnPct ?? -Infinity))
                   .map((r) => (
-                  <tr key={r.eggId} className="border-b border-border/40 hover-elevate" data-testid={`row-backtest-${r.eggId}`}>
-                    <td className="px-3 py-2 font-mono text-primary tabular">{r.ticker}</td>
-                    <td className="px-3 py-2 text-foreground truncate max-w-[180px]">{r.companyName}</td>
-                    <td className="px-3 py-2 text-muted-foreground italic">{r.theme}</td>
-                    <td className="px-3 py-2 text-right tabular">{r.hopDistance}</td>
-                    <td className="px-3 py-2 text-right text-muted-foreground tabular">{r.flagDate}</td>
-                    <td className="px-3 py-2 text-right text-muted-foreground tabular">{r.daysHeld}</td>
-                    <td className="px-3 py-2 text-right font-mono tabular">{r.flagClose == null ? "—" : `$${r.flagClose.toFixed(2)}`}</td>
-                    <td className="px-3 py-2 text-right font-mono tabular">{r.latestClose == null ? "—" : `$${r.latestClose.toFixed(2)}`}</td>
-                    <td className={`px-3 py-2 text-right font-mono tabular ${
-                      r.returnPct == null ? "text-muted-foreground" :
-                      r.returnPct > 0 ? "text-emerald-400" :
-                      r.returnPct < 0 ? "text-rose-400" : "text-muted-foreground"
-                    }`}>
-                      {r.returnPct == null ? "—" : `${r.returnPct >= 0 ? "+" : ""}${r.returnPct.toFixed(1)}%`}
-                    </td>
-                  </tr>
-                ))}
+                    <tr
+                      key={r.eggId}
+                      className="border-b border-border/40 hover-elevate"
+                      data-testid={`row-backtest-${r.eggId}`}
+                    >
+                      <td className="px-3 py-2 font-mono text-primary tabular">{r.ticker}</td>
+                      <td className="px-3 py-2 text-foreground truncate max-w-[180px]">{r.companyName}</td>
+                      <td className="px-3 py-2 text-muted-foreground italic">{r.theme}</td>
+                      <td className="px-3 py-2 text-right tabular">{r.hopDistance}</td>
+                      <td className="px-3 py-2 text-right text-muted-foreground tabular">{r.flagDate}</td>
+                      <td className="px-3 py-2 text-right text-muted-foreground tabular">{r.daysHeld}</td>
+                      <td className="px-3 py-2 text-right font-mono tabular">
+                        {r.flagClose == null ? "—" : `$${r.flagClose.toFixed(2)}`}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono tabular">
+                        {r.latestClose == null ? "—" : `$${r.latestClose.toFixed(2)}`}
+                      </td>
+                      <td
+                        className={`px-3 py-2 text-right font-mono tabular ${
+                          r.returnPct == null
+                            ? "text-muted-foreground"
+                            : r.returnPct > 0
+                              ? "text-emerald-400"
+                              : r.returnPct < 0
+                                ? "text-rose-400"
+                                : "text-muted-foreground"
+                        }`}
+                      >
+                        {r.returnPct == null
+                          ? "—"
+                          : `${r.returnPct >= 0 ? "+" : ""}${r.returnPct.toFixed(1)}%`}
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -150,21 +170,37 @@ function RollupTable({ title, rows, keyLabel }: { title: string; rows: BacktestR
               <tr key={r.key} className="border-b border-border/40">
                 <td className="px-3 py-2 text-foreground truncate max-w-[140px]">{r.key}</td>
                 <td className="px-3 py-2 text-right text-muted-foreground tabular">{r.count}</td>
-                <td className={`px-3 py-2 text-right font-mono tabular ${r.winRate >= 0.5 ? "text-emerald-400" : "text-rose-400"}`}>
+                <td
+                  className={`px-3 py-2 text-right font-mono tabular ${r.winRate >= 0.5 ? "text-emerald-400" : "text-rose-400"}`}
+                >
                   {(r.winRate * 100).toFixed(0)}%
                 </td>
-                <td className={`px-3 py-2 text-right font-mono tabular ${
-                  r.medianReturn == null ? "text-muted-foreground" :
-                  r.medianReturn > 0 ? "text-emerald-400" :
-                  r.medianReturn < 0 ? "text-rose-400" : "text-muted-foreground"
-                }`}>
-                  {r.medianReturn == null ? "—" : `${r.medianReturn >= 0 ? "+" : ""}${r.medianReturn.toFixed(1)}%`}
+                <td
+                  className={`px-3 py-2 text-right font-mono tabular ${
+                    r.medianReturn == null
+                      ? "text-muted-foreground"
+                      : r.medianReturn > 0
+                        ? "text-emerald-400"
+                        : r.medianReturn < 0
+                          ? "text-rose-400"
+                          : "text-muted-foreground"
+                  }`}
+                >
+                  {r.medianReturn == null
+                    ? "—"
+                    : `${r.medianReturn >= 0 ? "+" : ""}${r.medianReturn.toFixed(1)}%`}
                 </td>
-                <td className={`px-3 py-2 text-right font-mono tabular ${
-                  r.avgReturn == null ? "text-muted-foreground" :
-                  r.avgReturn > 0 ? "text-emerald-400" :
-                  r.avgReturn < 0 ? "text-rose-400" : "text-muted-foreground"
-                }`}>
+                <td
+                  className={`px-3 py-2 text-right font-mono tabular ${
+                    r.avgReturn == null
+                      ? "text-muted-foreground"
+                      : r.avgReturn > 0
+                        ? "text-emerald-400"
+                        : r.avgReturn < 0
+                          ? "text-rose-400"
+                          : "text-muted-foreground"
+                  }`}
+                >
                   {r.avgReturn == null ? "—" : `${r.avgReturn >= 0 ? "+" : ""}${r.avgReturn.toFixed(1)}%`}
                 </td>
               </tr>
@@ -177,7 +213,8 @@ function RollupTable({ title, rows, keyLabel }: { title: string; rows: BacktestR
 }
 
 function StatCard({ label, value, accent }: { label: string; value: string; accent?: "pos" | "neg" }) {
-  const color = accent === "pos" ? "text-emerald-400" : accent === "neg" ? "text-rose-400" : "text-foreground";
+  const color =
+    accent === "pos" ? "text-emerald-400" : accent === "neg" ? "text-rose-400" : "text-foreground";
   return (
     <div className="border border-card-border bg-card rounded-md p-4">
       <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">{label}</div>

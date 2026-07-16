@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState } from "react";
 import type { GraphNode, GraphEdge } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 
@@ -29,26 +29,43 @@ export default function GraphPage() {
     const outEdges = edges.filter((e) => e.fromNodeId === focusNode.id);
     for (const e of outEdges) {
       const n = nodes.find((n) => n.id === e.toNodeId);
-      if (n && !seen.has(n.id)) { level1.push(n); seen.add(n.id); }
+      if (n && !seen.has(n.id)) {
+        level1.push(n);
+        seen.add(n.id);
+      }
     }
     for (const n1 of level1) {
       const outs = edges.filter((e) => e.fromNodeId === n1.id);
       for (const e of outs) {
         const n = nodes.find((nn) => nn.id === e.toNodeId);
-        if (n && !seen.has(n.id)) { level2.push(n); seen.add(n.id); }
+        if (n && !seen.has(n.id)) {
+          level2.push(n);
+          seen.add(n.id);
+        }
       }
     }
 
-    const cx = 450, cy = 300;
+    const cx = 450,
+      cy = 300;
     const positioned = new Map<number, { x: number; y: number; node: GraphNode; ring: 0 | 1 | 2 }>();
     positioned.set(focusNode.id, { x: cx, y: cy, node: focusNode, ring: 0 });
     level1.forEach((n, i) => {
       const angle = (i / level1.length) * Math.PI * 2 - Math.PI / 2;
-      positioned.set(n.id, { x: cx + Math.cos(angle) * 160, y: cy + Math.sin(angle) * 130, node: n, ring: 1 });
+      positioned.set(n.id, {
+        x: cx + Math.cos(angle) * 160,
+        y: cy + Math.sin(angle) * 130,
+        node: n,
+        ring: 1,
+      });
     });
     level2.forEach((n, i) => {
       const angle = (i / level2.length) * Math.PI * 2 - Math.PI / 4;
-      positioned.set(n.id, { x: cx + Math.cos(angle) * 300, y: cy + Math.sin(angle) * 260, node: n, ring: 2 });
+      positioned.set(n.id, {
+        x: cx + Math.cos(angle) * 300,
+        y: cy + Math.sin(angle) * 260,
+        node: n,
+        ring: 2,
+      });
     });
 
     const includedIds = new Set(positioned.keys());
@@ -57,15 +74,24 @@ export default function GraphPage() {
   }, [focusNode, nodes, edges]);
 
   const filteredNodes = search
-    ? nodes.filter((n) => n.name.toLowerCase().includes(search.toLowerCase()) || (n.ticker ?? "").toLowerCase().includes(search.toLowerCase()))
+    ? nodes.filter(
+        (n) =>
+          n.name.toLowerCase().includes(search.toLowerCase()) ||
+          (n.ticker ?? "").toLowerCase().includes(search.toLowerCase())
+      )
     : [];
 
   return (
     <div className="px-8 py-8 max-w-[1400px] mx-auto">
       <div className="grid grid-cols-[280px_1fr] gap-6">
         {/* Left rail: pick a catalyst root */}
-        <aside className="border border-card-border bg-card rounded-md p-4 max-h-[70vh] overflow-y-auto" style={{ overscrollBehavior: "contain" }}>
-          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-3">Catalyst roots</div>
+        <aside
+          className="border border-card-border bg-card rounded-md p-4 max-h-[70vh] overflow-y-auto"
+          style={{ overscrollBehavior: "contain" }}
+        >
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
+            Catalyst roots
+          </div>
           <div className="flex flex-col gap-1">
             {industries.map((n) => (
               <button
@@ -78,8 +104,15 @@ export default function GraphPage() {
               </button>
             ))}
           </div>
-          <div className="mt-6 mb-3 text-[10px] uppercase tracking-widest text-muted-foreground">Search all nodes</div>
-          <Input placeholder="Ticker or name…" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-2" />
+          <div className="mt-6 mb-3 text-[10px] uppercase tracking-widest text-muted-foreground">
+            Search all nodes
+          </div>
+          <Input
+            placeholder="Ticker or name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="mb-2"
+          />
           <div className="flex flex-col gap-0.5">
             {filteredNodes.slice(0, 20).map((n) => (
               <button
@@ -111,7 +144,10 @@ export default function GraphPage() {
                 return (
                   <line
                     key={e.id}
-                    x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                    x1={from.x}
+                    y1={from.y}
+                    x2={to.x}
+                    y2={to.y}
                     stroke={stroke}
                     strokeWidth={0.5 + Math.abs(e.strength) * 1.5}
                     opacity={opacity}

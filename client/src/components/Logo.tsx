@@ -19,7 +19,16 @@ export function Logo({ size = 28, className = "" }: { size?: number; className?:
         fill="none"
       />
       {/* Inner ripple 1 */}
-      <ellipse cx="16" cy="16" rx="4.5" ry="5.5" stroke="currentColor" strokeWidth="1.25" fill="none" opacity="0.55" />
+      <ellipse
+        cx="16"
+        cy="16"
+        rx="4.5"
+        ry="5.5"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        fill="none"
+        opacity="0.55"
+      />
       {/* Center dot */}
       <circle cx="16" cy="16" r="1.4" fill="currentColor" />
     </svg>

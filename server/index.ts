@@ -1,6 +1,6 @@
 import "dotenv/config";
-import express, { Response, NextFunction } from 'express';
-import type { Request } from 'express';
+import express, { Response, NextFunction } from "express";
+import type { Request } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "node:http";
@@ -24,7 +24,7 @@ app.use(
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
-  }),
+  })
 );
 
 app.use(express.urlencoded({ extended: false }));
@@ -106,6 +106,6 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
-    },
+    }
   );
 })();

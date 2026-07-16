@@ -1,18 +1,24 @@
-import {
-  catalysts, nodes, edges, goldenEggs, watchlist, rippleCache, scanRuns,
-} from '@shared/schema';
+import { catalysts, nodes, edges, goldenEggs, watchlist, rippleCache, scanRuns } from "@shared/schema";
 import type {
-  Catalyst, InsertCatalyst,
-  Node as GraphNode, InsertNode,
-  Edge as GraphEdge, InsertEdge,
-  GoldenEgg, InsertGoldenEgg, GoldenEggWithCatalyst,
-  Watchlist, InsertWatchlist,
-  RippleCache, InsertRippleCache,
-  ScanRun, InsertScanRun,
-} from '@shared/schema';
+  Catalyst,
+  InsertCatalyst,
+  Node as GraphNode,
+  InsertNode,
+  Edge as GraphEdge,
+  InsertEdge,
+  GoldenEgg,
+  InsertGoldenEgg,
+  GoldenEggWithCatalyst,
+  Watchlist,
+  InsertWatchlist,
+  RippleCache,
+  InsertRippleCache,
+  ScanRun,
+  InsertScanRun,
+} from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
-import { eq, desc, asc, and, sql } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
 const sqlite = new Database("data.db");
 sqlite.pragma("journal_mode = WAL");
@@ -60,7 +66,11 @@ export interface IStorage {
 
   // Golden eggs
   createEgg(e: InsertGoldenEgg): Promise<GoldenEgg>;
-  listEggs(opts?: { minConfidence?: number; sector?: string; limit?: number }): Promise<GoldenEggWithCatalyst[]>;
+  listEggs(opts?: {
+    minConfidence?: number;
+    sector?: string;
+    limit?: number;
+  }): Promise<GoldenEggWithCatalyst[]>;
   getEgg(id: number): Promise<GoldenEggWithCatalyst | undefined>;
   getEggsForCatalyst(catalystId: number): Promise<GoldenEgg[]>;
   updateEggPrice(id: number, price: number, refreshedAt: number): Promise<void>;
@@ -101,7 +111,10 @@ export class DatabaseStorage implements IStorage {
     return db.insert(catalysts).values(c).returning().get();
   }
   async markCatalystAnalyzed(id: number, credits: number) {
-    db.update(catalysts).set({ rippleAnalyzed: true, rippleCostCredits: credits }).where(eq(catalysts.id, id)).run();
+    db.update(catalysts)
+      .set({ rippleAnalyzed: true, rippleCostCredits: credits })
+      .where(eq(catalysts.id, id))
+      .run();
   }
   async touchCatalyst(id: number, ts: number) {
     db.update(catalysts).set({ lastSeenAt: ts }).where(eq(catalysts.id, id)).run();
@@ -162,18 +175,28 @@ export class DatabaseStorage implements IStorage {
       .all();
 
     return rows
-      .filter((r) => (opts.minConfidence == null || r.egg.confidence >= opts.minConfidence))
-      .filter((r) => (opts.sector == null || r.egg.sector === opts.sector))
+      .filter((r) => opts.minConfidence == null || r.egg.confidence >= opts.minConfidence)
+      .filter((r) => opts.sector == null || r.egg.sector === opts.sector)
       .map((r) => ({
         ...r.egg,
         catalyst: r.catalyst
-          ? { id: r.catalyst.id, title: r.catalyst.title, theme: r.catalyst.theme, sourceUrl: r.catalyst.sourceUrl }
+          ? {
+              id: r.catalyst.id,
+              title: r.catalyst.title,
+              theme: r.catalyst.theme,
+              sourceUrl: r.catalyst.sourceUrl,
+            }
           : { id: 0, title: "(missing)", theme: "", sourceUrl: null },
         onWatchlist: r.watchId != null,
       })) as GoldenEggWithCatalyst[];
   }
   async getEggsForCatalyst(catalystId: number) {
-    return db.select().from(goldenEggs).where(eq(goldenEggs.catalystId, catalystId)).orderBy(desc(goldenEggs.confidence)).all();
+    return db
+      .select()
+      .from(goldenEggs)
+      .where(eq(goldenEggs.catalystId, catalystId))
+      .orderBy(desc(goldenEggs.confidence))
+      .all();
   }
   async getEgg(id: number) {
     const row = db
@@ -203,10 +226,16 @@ export class DatabaseStorage implements IStorage {
     } as any;
   }
   async updateEggPrice(id: number, price: number, refreshedAt: number) {
-    db.update(goldenEggs).set({ currentPrice: price, priceRefreshedAt: refreshedAt }).where(eq(goldenEggs.id, id)).run();
+    db.update(goldenEggs)
+      .set({ currentPrice: price, priceRefreshedAt: refreshedAt })
+      .where(eq(goldenEggs.id, id))
+      .run();
   }
   async updateEggFlagPrice(id: number, price: number, flagDate: number) {
-    db.update(goldenEggs).set({ priceAtFlag: price, priceAtFlagDate: flagDate }).where(eq(goldenEggs.id, id)).run();
+    db.update(goldenEggs)
+      .set({ priceAtFlag: price, priceAtFlagDate: flagDate })
+      .where(eq(goldenEggs.id, id))
+      .run();
   }
   async listAllEggs() {
     return db.select().from(goldenEggs).all();
@@ -232,7 +261,12 @@ export class DatabaseStorage implements IStorage {
       .map((r) => ({
         ...r.egg!,
         catalyst: r.catalyst
-          ? { id: r.catalyst.id, title: r.catalyst.title, theme: r.catalyst.theme, sourceUrl: r.catalyst.sourceUrl }
+          ? {
+              id: r.catalyst.id,
+              title: r.catalyst.title,
+              theme: r.catalyst.theme,
+              sourceUrl: r.catalyst.sourceUrl,
+            }
           : { id: 0, title: "(missing)", theme: "", sourceUrl: null },
         onWatchlist: true,
       })) as GoldenEggWithCatalyst[];
@@ -250,7 +284,10 @@ export class DatabaseStorage implements IStorage {
     return db.insert(rippleCache).values(c).returning().get();
   }
   async incrementCacheHit(id: number) {
-    db.update(rippleCache).set({ hitCount: sql`${rippleCache.hitCount} + 1` }).where(eq(rippleCache.id, id)).run();
+    db.update(rippleCache)
+      .set({ hitCount: sql`${rippleCache.hitCount} + 1` })
+      .where(eq(rippleCache.id, id))
+      .run();
   }
   async deleteCache(themeHash: string) {
     db.delete(rippleCache).where(eq(rippleCache.themeHash, themeHash)).run();

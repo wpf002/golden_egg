@@ -16,7 +16,7 @@ export default function CatalystsPage() {
     (c) =>
       !search ||
       c.title.toLowerCase().includes(search.toLowerCase()) ||
-      c.theme.toLowerCase().includes(search.toLowerCase()),
+      c.theme.toLowerCase().includes(search.toLowerCase())
   );
 
   const toggle = (id: number) => {
@@ -64,7 +64,10 @@ export default function CatalystsPage() {
 }
 
 function CatalystRow({
-  c, open, onToggle, onOpenEgg,
+  c,
+  open,
+  onToggle,
+  onOpenEgg,
 }: {
   c: Catalyst;
   open: boolean;
@@ -83,12 +86,20 @@ function CatalystRow({
         <div className="flex items-start justify-between gap-4 mb-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-[10px] uppercase tracking-widest text-primary font-medium">{c.theme}</span>
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70">{c.sourceType.replace("_", " ")}</span>
+              <span className="text-[10px] uppercase tracking-widest text-primary font-medium">
+                {c.theme}
+              </span>
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70">
+                {c.sourceType.replace("_", " ")}
+              </span>
               {c.rippleAnalyzed ? (
-                <span className="inline-flex items-center gap-1 text-[10px] text-pos"><CheckCircle2 size={10} /> analyzed</span>
+                <span className="inline-flex items-center gap-1 text-[10px] text-pos">
+                  <CheckCircle2 size={10} /> analyzed
+                </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"><Clock size={10} /> pending</span>
+                <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Clock size={10} /> pending
+                </span>
               )}
             </div>
             <h4 className="text-sm font-medium text-foreground leading-snug">{c.title}</h4>
@@ -110,8 +121,12 @@ function CatalystRow({
           </button>
           <span>Seen {formatRelative(c.lastSeenAt)}</span>
           {c.sourceUrl && (
-            <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer"
-               className="text-primary hover:underline inline-flex items-center gap-1">
+            <a
+              href={c.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline inline-flex items-center gap-1"
+            >
               Source <ExternalLink size={10} />
             </a>
           )}
@@ -124,7 +139,9 @@ function CatalystRow({
           {isLoading ? (
             <div className="text-xs text-muted-foreground">Loading eggs…</div>
           ) : eggs.length === 0 ? (
-            <div className="text-xs text-muted-foreground italic">No eggs flagged from this catalyst yet.</div>
+            <div className="text-xs text-muted-foreground italic">
+              No eggs flagged from this catalyst yet.
+            </div>
           ) : (
             <div className="flex flex-col divide-y divide-border/40">
               {eggs.map((e) => (

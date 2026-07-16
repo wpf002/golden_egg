@@ -1,0 +1,7 @@
+dist/
+node_modules/
+coverage/
+client/src/components/ui/
+package-lock.json
+data.db
+*.md

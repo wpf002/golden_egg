@@ -51,7 +51,9 @@ class FinnhubProvider implements QuotesProvider {
 
   async quotes(tickers: string[]): Promise<Record<string, number>> {
     const out: Record<string, number> = {};
-    const uniq = Array.from(new Set(tickers.map((t) => t.toUpperCase()))).filter(Boolean);
+    // trim before filtering — a whitespace-only ticker is truthy and would
+    // otherwise burn a request on a junk symbol
+    const uniq = Array.from(new Set(tickers.map((t) => t.trim().toUpperCase()))).filter(Boolean);
     // Finnhub /quote is one symbol per call; free tier allows 60/min. Run in
     // small concurrent batches to stay well under the limit.
     const CONCURRENCY = 5;
@@ -60,7 +62,10 @@ class FinnhubProvider implements QuotesProvider {
       await Promise.all(
         batch.map(async (sym) => {
           try {
-            const q = await withRetry(() => this.get(`/quote?symbol=${encodeURIComponent(sym)}`), "finnhub quote");
+            const q = await withRetry(
+              () => this.get(`/quote?symbol=${encodeURIComponent(sym)}`),
+              "finnhub quote"
+            );
             const p = q?.c; // current price
             if (Number.isFinite(p) && p > 0) out[sym] = p;
           } catch (e) {
@@ -77,7 +82,10 @@ class FinnhubProvider implements QuotesProvider {
       const from = Math.floor(new Date(startYmd + "T00:00:00Z").getTime() / 1000);
       const to = Math.floor(new Date(endYmd + "T23:59:59Z").getTime() / 1000);
       const r = await withRetry(
-        () => this.get(`/stock/candle?symbol=${encodeURIComponent(ticker.toUpperCase())}&resolution=D&from=${from}&to=${to}`),
+        () =>
+          this.get(
+            `/stock/candle?symbol=${encodeURIComponent(ticker.toUpperCase())}&resolution=D&from=${from}&to=${to}`
+          ),
         "finnhub candle"
       );
       if (r?.s !== "ok" || !Array.isArray(r?.c)) return [];
@@ -90,7 +98,10 @@ class FinnhubProvider implements QuotesProvider {
       out.sort((a, b) => a.date.localeCompare(b.date));
       return out;
     } catch (e) {
-      console.warn(`[quotes] finnhub ohlcv ${ticker} failed (candles need a paid plan):`, (e as Error).message);
+      console.warn(
+        `[quotes] finnhub ohlcv ${ticker} failed (candles need a paid plan):`,
+        (e as Error).message
+      );
       return [];
     }
   }

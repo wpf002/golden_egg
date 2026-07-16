@@ -1,6 +1,5 @@
 import type { GoldenEggWithCatalyst, RipplePath } from "@/lib/types";
 import { Star, TrendingUp, Clock, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -30,17 +29,19 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
     if (egg.ripplePath) path = JSON.parse(egg.ripplePath);
   } catch {}
 
-  const hopBadge =
-    egg.hopDistance === 1 ? "1st-order" :
-    egg.hopDistance === 2 ? "2nd-order" : "3rd-order";
+  const hopBadge = egg.hopDistance === 1 ? "1st-order" : egg.hopDistance === 2 ? "2nd-order" : "3rd-order";
 
   // Price delta — shown only when both flag & current are populated
   const hasPrices = egg.priceAtFlag != null && egg.currentPrice != null && egg.priceAtFlag > 0;
   const deltaPct = hasPrices ? ((egg.currentPrice! - egg.priceAtFlag!) / egg.priceAtFlag!) * 100 : null;
   const deltaColor =
-    deltaPct == null ? "text-muted-foreground" :
-    deltaPct > 0 ? "text-emerald-400" :
-    deltaPct < 0 ? "text-rose-400" : "text-muted-foreground";
+    deltaPct == null
+      ? "text-muted-foreground"
+      : deltaPct > 0
+        ? "text-emerald-400"
+        : deltaPct < 0
+          ? "text-rose-400"
+          : "text-muted-foreground";
 
   return (
     <div
@@ -49,11 +50,19 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
       onClick={() => onOpen?.(egg.id)}
       role={onOpen ? "button" : undefined}
       tabIndex={onOpen ? 0 : undefined}
-      onKeyDown={(ev) => { if (onOpen && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); onOpen(egg.id); } }}
+      onKeyDown={(ev) => {
+        if (onOpen && (ev.key === "Enter" || ev.key === " ")) {
+          ev.preventDefault();
+          onOpen(egg.id);
+        }
+      }}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-baseline gap-3 min-w-0 flex-1">
-          <div className="font-mono text-lg font-medium text-primary tracking-tight tabular" data-testid={`text-ticker-${egg.id}`}>
+          <div
+            className="font-mono text-lg font-medium text-primary tracking-tight tabular"
+            data-testid={`text-ticker-${egg.id}`}
+          >
             {egg.ticker}
           </div>
           <div className="text-sm text-foreground truncate flex-1">{egg.companyName}</div>
@@ -64,14 +73,19 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
               </div>
               {deltaPct != null && (
                 <div className={`font-mono text-[10px] tabular ${deltaColor}`}>
-                  {deltaPct >= 0 ? "+" : ""}{deltaPct.toFixed(1)}%
+                  {deltaPct >= 0 ? "+" : ""}
+                  {deltaPct.toFixed(1)}%
                 </div>
               )}
             </div>
           )}
         </div>
         <button
-          onClick={(ev) => { ev.stopPropagation(); egg.onWatchlist ? removeMut.mutate() : addMut.mutate(); }}
+          onClick={(ev) => {
+            ev.stopPropagation();
+            if (egg.onWatchlist) removeMut.mutate();
+            else addMut.mutate();
+          }}
           className={`flex-shrink-0 p-1.5 rounded-md transition-colors ${
             egg.onWatchlist
               ? "text-primary hover:bg-primary/10"
@@ -86,7 +100,9 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
 
       <div className="flex flex-wrap items-center gap-1.5 mb-3 text-[10px] uppercase tracking-wider">
         <span className="bg-primary-subtle px-1.5 py-0.5 rounded font-medium">{hopBadge}</span>
-        {egg.sector && <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{egg.sector}</span>}
+        {egg.sector && (
+          <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{egg.sector}</span>
+        )}
         <span className="text-muted-foreground inline-flex items-center gap-1">
           <Clock size={10} /> {egg.timingLag}
         </span>
@@ -126,12 +142,11 @@ export function ConfidenceBar({ value }: { value: number }) {
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1 bg-secondary rounded-full overflow-hidden">
-        <div
-          className="h-full bg-primary transition-all"
-          style={{ width: `${pct}%` }}
-        />
+        <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
       </div>
-      <div className="text-[10px] font-mono text-muted-foreground tabular w-8 text-right">{pct.toFixed(0)}</div>
+      <div className="text-[10px] font-mono text-muted-foreground tabular w-8 text-right">
+        {pct.toFixed(0)}
+      </div>
     </div>
   );
 }

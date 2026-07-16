@@ -78,15 +78,39 @@ export async function ingestSecEightK(themes: string[], perTheme = 3): Promise<C
 // RSS ingestion \u2014 policy + data agencies (high-signal, low-noise)
 // ---------------------------------------------------------------
 const RSS_FEEDS: { url: string; source: string; theme: string }[] = [
-  { url: "https://www.federalreserve.gov/feeds/press_all.xml", source: "Federal Reserve", theme: "monetary policy" },
+  {
+    url: "https://www.federalreserve.gov/feeds/press_all.xml",
+    source: "Federal Reserve",
+    theme: "monetary policy",
+  },
   { url: "https://www.energy.gov/rss.xml", source: "DOE", theme: "energy policy" },
   { url: "https://www.eia.gov/rss/press_rss.xml", source: "EIA", theme: "energy data" },
-  { url: "https://www.federalregister.gov/api/v1/documents.rss?conditions%5Btype%5D%5B%5D=RULE&conditions%5Btype%5D%5B%5D=PRORULE&per_page=25", source: "Federal Register", theme: "US regulation" },
-  { url: "https://ustr.gov/about-us/policy-offices/press-office/press-releases/rss.xml", source: "USTR", theme: "trade & tariffs" },
+  {
+    url: "https://www.federalregister.gov/api/v1/documents.rss?conditions%5Btype%5D%5B%5D=RULE&conditions%5Btype%5D%5B%5D=PRORULE&per_page=25",
+    source: "Federal Register",
+    theme: "US regulation",
+  },
+  {
+    url: "https://ustr.gov/about-us/policy-offices/press-office/press-releases/rss.xml",
+    source: "USTR",
+    theme: "trade & tariffs",
+  },
   { url: "https://www.bls.gov/feed/news_release/atus.rss", source: "BLS", theme: "labor economics" },
-  { url: "https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=945&max=25", source: "DoD Contracts", theme: "defense procurement" },
-  { url: "https://www.nrc.gov/public-involve/public-meetings/schedule.rss", source: "NRC", theme: "nuclear regulation" },
-  { url: "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml", source: "FDA", theme: "drug approvals" },
+  {
+    url: "https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=945&max=25",
+    source: "DoD Contracts",
+    theme: "defense procurement",
+  },
+  {
+    url: "https://www.nrc.gov/public-involve/public-meetings/schedule.rss",
+    source: "NRC",
+    theme: "nuclear regulation",
+  },
+  {
+    url: "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml",
+    source: "FDA",
+    theme: "drug approvals",
+  },
 ];
 
 export async function ingestRss(): Promise<CatalystCandidate[]> {
@@ -163,12 +187,13 @@ function parseRssItems(xml: string): { title: string; link: string; description:
     const title = extract(m, "title");
     const link = extract(m, "link") || extractAttr(m, "link", "href") || "";
     const description = extract(m, "description") || extract(m, "summary") || extract(m, "content") || "";
-    if (title) items.push({ title: cleanText(title), link: cleanText(link), description: cleanText(description) });
+    if (title)
+      items.push({ title: cleanText(title), link: cleanText(link), description: cleanText(description) });
   }
   return items;
 }
 function extract(str: string, tag: string): string {
-  const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\/${tag}>`, "i");
+  const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "i");
   const m = str.match(re);
   return m ? m[1] : "";
 }
@@ -181,7 +206,11 @@ function cleanText(s: string): string {
   return s
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
     .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 }

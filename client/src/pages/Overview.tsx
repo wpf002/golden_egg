@@ -23,13 +23,18 @@ export default function Overview() {
     mutationFn: async () => apiRequest("POST", "/api/scan/run"),
     onSuccess: async (_r) => {
       const data = await _r.json();
-      toast({ title: "Scan complete", description: `${data.eggsCreated} new eggs, ${data.cacheHits} cache hits, ~${data.approxCredits} credits` });
+      toast({
+        title: "Scan complete",
+        description: `${data.eggsCreated} new eggs, ${data.cacheHits} cache hits, ~${data.approxCredits} credits`,
+      });
       qc.invalidateQueries();
     },
     onError: (e: any) => toast({ title: "Scan failed", description: e.message, variant: "destructive" }),
   });
 
-  const topEggs = [...eggs].sort((a, b) => b.confidence * (1 + b.noveltyScore) - a.confidence * (1 + a.noveltyScore)).slice(0, 6);
+  const topEggs = [...eggs]
+    .sort((a, b) => b.confidence * (1 + b.noveltyScore) - a.confidence * (1 + a.noveltyScore))
+    .slice(0, 6);
   const totalCredits = scans.reduce((s, r) => s + r.approxCredits, 0);
   const totalCacheHits = scans.reduce((s, r) => s + r.cacheHits, 0);
 
@@ -42,8 +47,8 @@ export default function Overview() {
             What ripples are worth trading right now?
           </h2>
           <p className="text-sm text-muted-foreground max-w-xl leading-relaxed">
-            Golden Egg watches emerging catalysts and traces them 2–3 hops out to find
-            the non-obvious picks and shovels. Everything you see is a public-market ticker.
+            Golden Egg watches emerging catalysts and traces them 2–3 hops out to find the non-obvious picks
+            and shovels. Everything you see is a public-market ticker.
           </p>
         </div>
         <Button
@@ -59,23 +64,48 @@ export default function Overview() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-4 gap-4 mb-10">
-        <StatCard label="Golden Eggs" value={eggs.length} icon={Zap} sublabel={`${eggs.filter((e) => e.confidence >= 0.75).length} high-conf`} />
-        <StatCard label="Catalysts tracked" value={catalysts.length} icon={TrendingUp} sublabel={`${catalysts.filter((c) => !c.rippleAnalyzed).length} unanalyzed`} />
-        <StatCard label="Cache hits" value={totalCacheHits} icon={Database} sublabel="free reruns" accent="pos" />
-        <StatCard label="Credits used" value={totalCredits} icon={Zap} sublabel={`across ${scans.length} scans`} />
+        <StatCard
+          label="Golden Eggs"
+          value={eggs.length}
+          icon={Zap}
+          sublabel={`${eggs.filter((e) => e.confidence >= 0.75).length} high-conf`}
+        />
+        <StatCard
+          label="Catalysts tracked"
+          value={catalysts.length}
+          icon={TrendingUp}
+          sublabel={`${catalysts.filter((c) => !c.rippleAnalyzed).length} unanalyzed`}
+        />
+        <StatCard
+          label="Cache hits"
+          value={totalCacheHits}
+          icon={Database}
+          sublabel="free reruns"
+          accent="pos"
+        />
+        <StatCard
+          label="Credits used"
+          value={totalCredits}
+          icon={Zap}
+          sublabel={`across ${scans.length} scans`}
+        />
       </div>
 
       {/* Top eggs */}
       <section className="mb-10">
         <div className="flex items-baseline justify-between mb-4">
           <h3 className="text-sm uppercase tracking-widest text-muted-foreground">Top parallel plays</h3>
-          <Link href="/eggs" className="text-xs text-primary hover:underline">View all →</Link>
+          <Link href="/eggs" className="text-xs text-primary hover:underline">
+            View all →
+          </Link>
         </div>
         {topEggs.length === 0 ? (
           <EmptyState message="Run your first scan to see parallel-market opportunities." />
         ) : (
           <div className="grid grid-cols-2 gap-4">
-            {topEggs.map((egg) => <EggCard key={egg.id} egg={egg} onOpen={setOpenEggId} />)}
+            {topEggs.map((egg) => (
+              <EggCard key={egg.id} egg={egg} onOpen={setOpenEggId} />
+            ))}
           </div>
         )}
       </section>
@@ -84,7 +114,9 @@ export default function Overview() {
       <section>
         <div className="flex items-baseline justify-between mb-4">
           <h3 className="text-sm uppercase tracking-widest text-muted-foreground">Recent catalysts</h3>
-          <Link href="/catalysts" className="text-xs text-primary hover:underline">View all →</Link>
+          <Link href="/catalysts" className="text-xs text-primary hover:underline">
+            View all →
+          </Link>
         </div>
         <div className="border border-card-border bg-card rounded-md overflow-hidden">
           <table className="w-full text-sm">
@@ -100,15 +132,30 @@ export default function Overview() {
             <tbody>
               {catalysts.slice(0, 10).map((c) => (
                 <tr key={c.id} className="border-b border-border/40 hover-elevate">
-                  <td className="px-4 py-3 max-w-md truncate text-foreground" data-testid={`text-catalyst-${c.id}`}>{c.title}</td>
+                  <td
+                    className="px-4 py-3 max-w-md truncate text-foreground"
+                    data-testid={`text-catalyst-${c.id}`}
+                  >
+                    {c.title}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground italic">{c.theme}</td>
-                  <td className="px-4 py-3 text-muted-foreground uppercase text-[10px] tracking-wider">{c.sourceType.replace("_", " ")}</td>
-                  <td className="px-4 py-3 text-right tabular text-primary font-mono">{(c.strengthScore * 100).toFixed(0)}</td>
-                  <td className="px-4 py-3 text-right tabular text-muted-foreground text-xs">{formatRelative(c.lastSeenAt)}</td>
+                  <td className="px-4 py-3 text-muted-foreground uppercase text-[10px] tracking-wider">
+                    {c.sourceType.replace("_", " ")}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular text-primary font-mono">
+                    {(c.strengthScore * 100).toFixed(0)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular text-muted-foreground text-xs">
+                    {formatRelative(c.lastSeenAt)}
+                  </td>
                 </tr>
               ))}
               {catalysts.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-sm">No catalysts yet.</td></tr>
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                    No catalysts yet.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -120,8 +167,18 @@ export default function Overview() {
 }
 
 function StatCard({
-  label, value, icon: Icon, sublabel, accent,
-}: { label: string; value: number | string; icon: any; sublabel?: string; accent?: "pos" | "neg" }) {
+  label,
+  value,
+  icon: Icon,
+  sublabel,
+  accent,
+}: {
+  label: string;
+  value: number | string;
+  icon: any;
+  sublabel?: string;
+  accent?: "pos" | "neg";
+}) {
   return (
     <div className="border border-card-border bg-card rounded-md p-4">
       <div className="flex items-center justify-between mb-2 text-muted-foreground">

@@ -17,10 +17,15 @@ import type { Catalyst, Node as GraphNode, Edge as GraphEdge } from "@shared/sch
 import { fetchQuotes } from "./finance";
 import { getLlm } from "./providers/llm";
 import { env } from "../config";
+import { coerceToCanonical, extractJson } from "./ripple-utils";
+
+// Re-exported for callers/tests that import them from the pipeline entrypoint.
+export { coerceToCanonical, extractJson };
 
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-const themeHash = (s: string) => crypto.createHash("sha256").update(s.toLowerCase().trim()).digest("hex").slice(0, 24);
+const themeHash = (s: string) =>
+  crypto.createHash("sha256").update(s.toLowerCase().trim()).digest("hex").slice(0, 24);
 
 // ---------------------------------------------------------------
 // Graph memoization \u2014 refresh at most once every 60s.
@@ -45,22 +50,13 @@ export type ClassifiedCatalyst = {
   rationale: string;
 };
 
-function coerceToCanonical(raw: string): string {
-  // exact match wins
-  if ((CANONICAL_THEMES as readonly string[]).includes(raw)) return raw;
-  const lower = raw.toLowerCase();
-  // fuzzy: first canonical whose key tokens all appear
-  for (const c of CANONICAL_THEMES) {
-    const toks = c.toLowerCase().split(/[\s&/]+/).filter((t) => t.length > 3);
-    if (toks.every((t) => lower.includes(t))) return c;
-  }
-  return raw.slice(0, 60); // fallback \u2014 pass through short
-}
-
 export async function classifyCatalysts(catalysts: Catalyst[]): Promise<ClassifiedCatalyst[]> {
   if (catalysts.length === 0) return [];
   const items = catalysts.map((c) => ({
-    id: c.id, title: c.title.slice(0, 200), theme: c.theme, summary: c.summary.slice(0, 250),
+    id: c.id,
+    title: c.title.slice(0, 200),
+    theme: c.theme,
+    summary: c.summary.slice(0, 250),
   }));
 
   const themeList = CANONICAL_THEMES.map((t, i) => `${i + 1}. ${t}`).join("\n");
@@ -88,7 +84,13 @@ Return ONLY a JSON object of shape: { "results": [{ "catalyst_id": N, "keep": bo
     return results.map((r) => ({ ...r, normalized_theme: coerceToCanonical(r.normalized_theme || "") }));
   } catch (e) {
     console.warn("classifyCatalysts failed:", (e as Error).message);
-    return catalysts.map((c) => ({ catalyst_id: c.id, keep: false, normalized_theme: c.theme, strength: 0.3, rationale: "classifier error" }));
+    return catalysts.map((c) => ({
+      catalyst_id: c.id,
+      keep: false,
+      normalized_theme: c.theme,
+      strength: 0.3,
+      rationale: "classifier error",
+    }));
   }
 }
 
@@ -115,7 +117,10 @@ export type RippleOutput = {
  */
 async function filteredGraphForTheme(theme: string): Promise<string> {
   const { nodes, edges } = await getGraph();
-  const themeTokens = theme.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 3);
+  const themeTokens = theme
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 3);
   const seedIds = new Set<number>();
   for (const n of nodes) {
     const hay = (n.name + " " + (n.description || "") + " " + n.slug).toLowerCase();
@@ -153,9 +158,12 @@ async function filteredGraphForTheme(theme: string): Promise<string> {
     const to = byId.get(e.toNodeId);
     if (!from || !to) continue;
     const toStr = to.ticker ? `${to.name} (${to.ticker})` : to.name;
-    lines.push(`  ${from.name} --[${e.relation}, s=${e.strength.toFixed(2)}]--> ${toStr}${e.note ? ` (${e.note})` : ""}`);
+    lines.push(
+      `  ${from.name} --[${e.relation}, s=${e.strength.toFixed(2)}]--> ${toStr}${e.note ? ` (${e.note})` : ""}`
+    );
   }
-  const scope = seedIds.size > 0 ? `filtered from ${seedIds.size} theme-relevant seeds` : "unfiltered fallback";
+  const scope =
+    seedIds.size > 0 ? `filtered from ${seedIds.size} theme-relevant seeds` : "unfiltered fallback";
   return `Known supply-chain edges (${lines.length} shown, ${scope}, total ${edges.length}):\n${lines.join("\n") || "  (no matching subgraph \u2014 reason from your own knowledge)"}`;
 }
 
@@ -264,7 +272,10 @@ export async function processCatalysts(catalysts: Catalyst[]): Promise<ScanStats
         // stale \u2014 remove before re-inserting
         await storage.deleteCache(th);
       }
-      const summary = group.catalysts.map((c) => c.title).join(" | ").slice(0, 800);
+      const summary = group.catalysts
+        .map((c) => c.title)
+        .join(" | ")
+        .slice(0, 800);
       output = await analyzeTheme(group.theme, summary);
       stats.themesAnalyzed++;
       stats.approxCredits += 15;
@@ -300,7 +311,11 @@ export async function processCatalysts(catalysts: Catalyst[]): Promise<ScanStats
   const uniqueTickers = Array.from(new Set(eggsToCreate.map((x) => x.egg.ticker.toUpperCase())));
   let priceMap: Record<string, number> = {};
   if (uniqueTickers.length > 0) {
-    try { priceMap = await fetchQuotes(uniqueTickers); } catch { priceMap = {}; }
+    try {
+      priceMap = await fetchQuotes(uniqueTickers);
+    } catch {
+      priceMap = {};
+    }
   }
 
   for (const { anchor, egg: e } of eggsToCreate) {
@@ -327,19 +342,4 @@ export async function processCatalysts(catalysts: Catalyst[]): Promise<ScanStats
   }
 
   return stats;
-}
-
-// ---------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------
-function extractJson(text: string): any {
-  if (!text) return null;
-  const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-  try { return JSON.parse(cleaned); } catch {}
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start >= 0 && end > start) {
-    try { return JSON.parse(cleaned.slice(start, end + 1)); } catch {}
-  }
-  return null;
 }

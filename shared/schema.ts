@@ -194,7 +194,7 @@ export const CANONICAL_THEMES = [
   "Water infrastructure",
   "Aging population healthcare",
 ] as const;
-export type CanonicalTheme = typeof CANONICAL_THEMES[number];
+export type CanonicalTheme = (typeof CANONICAL_THEMES)[number];
 
 export type CatalystWithEggs = Catalyst & {
   eggs: GoldenEgg[];

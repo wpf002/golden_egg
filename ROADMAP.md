@@ -68,22 +68,37 @@ quotes work; **historical candles (backtest) and the gainers screener are paid-o
 
 ---
 
-## Phase 1 — Engineering hygiene  *(~2–3 days)*
+## Phase 1 — Engineering hygiene  ✅ *(done 2026-07-16)*
 
 Make change safe before adding features.
 
-- [ ] **Git** — `git init`, first commit, push to the `wpf002/golden_egg` remote (currently not a repo).
-- [ ] **Vitest** — start with the two highest-value units the handoff itself flags:
-      `ripple.ts::coerceToCanonical` and the finance markdown-table parser. Add a route smoke test with `supertest`.
-- [ ] **ESLint + Prettier** — no lint config exists at all today. Add both; wire a `lint` + `format` script.
-- [ ] **`typecheck` in CI** — `tsc --noEmit` already works via `check`; make it a gate.
-- [ ] **GitHub Actions** — `lint → typecheck → test → build` on every PR.
-- [ ] **Purge dead deps** — remove `passport`, `passport-local`, `express-session`, `memorystore`,
-      `@supabase/supabase-js` **unless** Phase 3 auth is committed to. Trim `script/build.ts`'s fictional
-      bundle allowlist (`stripe`, `axios`, `nodemailer`, … none are installed).
-- [ ] **Tame `any`** — the handful in `Graph.tsx`, `Overview.tsx`, `storage.ts:203`, `ripple.ts`, `ingest.ts`.
+- [x] **Git** — repo initialized, first commit pushed to `wpf002/golden_egg`.
+- [x] **Vitest** — 24 tests across 3 files. Extracted the pure helpers into `ripple-utils.ts` (previously
+      untestable: importing `ripple.ts` opened `data.db` at module scope). Covers `coerceToCanonical`
+      (incl. the cache-key round-trip invariant that protects credits), `extractJson` (fences/prose/garbage),
+      the Finnhub provider (mocked fetch — no network/key), and `toYmd`.
+- [x] **ESLint + Prettier** — flat config, 0 errors. Prettier baseline applied across the repo.
+      shadcn-generated `ui/` + `use-*` hooks excluded (CLI regenerates them).
+- [x] **GitHub Actions** — `.github/workflows/ci.yml`: lint → format → typecheck → test → build on
+      every push/PR, pinned to `.nvmrc`. Full sequence verified locally.
+- [x] **Purge dead deps** — removed `passport`, `passport-local`, `express-session`, `memorystore`,
+      `@supabase/supabase-js`, `ws`, `bufferutil`, `zod-validation-error` + their `@types` (all confirmed
+      unreferenced). **Decision: auth was stripped, not built** — revisit only if this goes multi-tenant.
+      Trimmed `script/build.ts`'s fictional allowlist (`stripe`, `axios`, `nodemailer`, … never installed).
+- [~] **Tame `any`** — errors fixed; 14 `any` warnings remain as a deliberate, visible backlog
+      (`no-explicit-any` is `warn`, so new ones surface without failing the build).
 
-*Exit criteria:* green CI on every push; a broken change gets caught automatically.
+**Bugs caught by the new tests/lint (the suite paid for itself immediately):**
+- `quotes.ts` filtered tickers with `.filter(Boolean)` *after* `toUpperCase()`, so a whitespace-only
+  ticker was truthy and burned an API request on a junk symbol. Fixed with a `trim()`.
+- `EggCard.tsx` used a ternary as a statement; `ingest.ts` had a useless regex escape; several dead
+  imports across `routes.ts`, `storage.ts`, `seed.ts`, `Graph.tsx`, `EggCard.tsx`.
+
+**Note:** `eslint-plugin-react-hooks@7` imports `zod-validation-error/v4` but allows `^3.5.0`, which npm
+resolves to 3.5.4 (no `/v4` subpath) — ESLint won't load at all. Pinned via an `overrides` entry; remove it
+once upstream tightens the range.
+
+*Exit criteria met:* green CI on every push; a broken change gets caught automatically.
 
 ---
 
