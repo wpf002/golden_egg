@@ -8,6 +8,15 @@ data.db-shm
 data.db-wal
 data.db-journal
 
+# Local DB snapshots. The rules above match `data.db` exactly, so a backup
+# copy (data.db.bak, backups/…) would otherwise be committable.
+# NB: `data.db.*` needs the literal dot, so it does NOT cover the `data.db-wal`
+# sidecars above — don't "helpfully" add !negations for them here, that would
+# re-include them (later rules win).
+backups/
+*.db.bak
+data.db.*
+
 .env
 .env.*
 !.env.example
