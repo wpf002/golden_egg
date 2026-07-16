@@ -139,20 +139,41 @@ origin ever ships (Phase 4).
 
 ---
 
-## Phase 3 — Data & pipeline maturity  *(~3–5 days)*
+## Phase 3 — Data & pipeline maturity  ✅ *(done 2026-07-16)*
 
-- [ ] **Real migrations** — replace `addColumnIfMissing` runtime hacks (`storage.ts:21-34`) with Drizzle
-      migration files (`drizzle-kit generate`), committed and run on deploy.
-- [ ] **Cache eviction sweep** — `expiresAt` is only checked on read; add a background sweep (noted in the
-      handoff appendix as a future need past ~10k rows).
-- [ ] **Scheduled scans** — a real recurring pre-market scan job (the app originally ran one). Use a scheduled
-      task runner; guard with the Phase 2 concurrency lock.
-- [ ] **Auth decision** — *either* build it (recommend Supabase or Clerk) for multi-user watchlists, *or*
-      formally strip the dead auth deps. Don't leave it ambiguous. Only needed if this goes multi-tenant.
-- [ ] **Postgres option** — SQLite is fine for single-user local, but the storage layer already hides behind
-      `IStorage`; add a Postgres implementation when concurrency/hosting demands it.
-- [ ] **Batch/parallelize backtest OHLCV** — `routes.ts:90` fetches closes sequentially per ticker; cache daily
-      closes (also unlocks sparklines) and parallelize with a concurrency cap.
+- [x] **Real migrations** — Drizzle migration files in `./migrations`, applied at startup by `server/migrate.ts`;
+      the unversioned `addColumnIfMissing` hacks are gone. The 0000 baseline is written with `IF NOT EXISTS`
+      so the existing `data.db` (built before migrations) adopts cleanly. **Verified both directions on copies:**
+      existing DB → 79 eggs / 92 catalysts intact + journal recorded; fresh DB → 7 tables + 13 indexes, and a
+      re-run is a clean no-op. A failed migration now refuses to boot rather than serving an unknown schema.
+      Also added `DB_PATH` (app + `drizzle.config.ts` read the same value) and `foreign_keys`/`busy_timeout` pragmas.
+- [x] **Cache eviction sweep** — `sweepExpiredCache` on a recurring task (`CACHE_SWEEP_MINUTES`, default 6h).
+      Legacy rows with a NULL `expiresAt` are deliberately preserved rather than discarded.
+- [x] **Scheduled scans** — `server/scheduler.ts` (`SCAN_SCHEDULE`, 5-field expression). **Off by default** —
+      scans cost credits, and merely starting the server shouldn't bill you. Reuses the Phase 2 concurrency
+      guard (skips if a scan is in flight) and never rethrows from the callback. Graceful shutdown added.
+- [x] **Auth decision** — settled in Phase 1: **stripped, not built.** Revisit only if this goes multi-tenant.
+- [x] **Batch/parallelize backtest OHLCV** — `mapWithConcurrency` (cap 5) replaces the sequential per-ticker
+      loop. Sequential meant ~58 round-trips; `Promise.all` would trip the rate limit.
+- [ ] **Postgres option** — **deliberately deferred.** SQLite is correct for a single-user local tool, and
+      `IStorage` already isolates the swap. Doing it now would be speculative work with no current pressure.
+      Trigger to revisit: real concurrent writers or hosted multi-user.
+
+**Backtest was silently broken and is now fixed.** Finnhub's free plan has no historical candles, so every
+`latestClose` was null and the whole backtest returned nothing scoreable. It now falls back to the last
+refreshed spot price and reports `priceSource: "spot"`, with a banner saying the returns are approximate —
+an honest degradation instead of a blank page.
+
+**Data-integrity bug the backtest surfaced (pre-existing, from the original snapshot):** 6 eggs carry a
+placeholder flag price (GEV/FIX/FICO at `$1`, FCNCA at `$2`) against $1,000+ stocks, producing a
+**+107,099% "return"** that swamped the averages and inflated the win rate with fake wins. `scoreReturn`
+(in `lib/backtest.ts`, extracted so it's testable) now excludes returns beyond ±1000% as corrupt data and
+reports `suspectCount` in the UI rather than hiding it. Real effect: win rate 53.2% → **49.3%**, average
+return from a garbage number → **0.35%**.
+
+**Follow-up worth doing:** those 6 rows are bad *data*, not just a display problem. A one-off cleanup to null
+their `priceAtFlag` (so the next `/api/prices/refresh` backfills a real one) would fix them at the source.
+Not done here — it mutates real rows and deserves its own reviewed change.
 
 ---
 

@@ -5,6 +5,8 @@ import { runFullScan, ScanInProgressError } from "./pipeline/scan";
 import { insertWatchlistSchema } from "@shared/schema";
 import { fetchQuotes, fetchDailyCloses, toYmd } from "./pipeline/finance";
 import { parseId, eggQuerySchema, zodMessage } from "./middleware/validate";
+import { mapWithConcurrency } from "./lib/concurrency";
+import { scoreReturn } from "./lib/backtest";
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   // ---------- Catalysts ----------
@@ -96,13 +98,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         if (!startByTicker[t] || flag < startByTicker[t]) startByTicker[t] = flag;
       }
 
-      // Fetch daily closes for each ticker (sequential to be gentle)
+      // Fetch daily closes, a few tickers at a time. Sequential meant one
+      // round-trip per ticker (~58 of them); Promise.all would trip the
+      // provider's rate limit.
       const closesByTicker: Record<string, { date: string; close: number }[]> = {};
-      for (const t of uniqueTickers) {
-        const start = startByTicker[t];
-        const rows = await fetchDailyCloses(t, start, endYmd);
-        closesByTicker[t] = rows;
-      }
+      const fetched = await mapWithConcurrency(uniqueTickers, 5, (t) =>
+        fetchDailyCloses(t, startByTicker[t], endYmd)
+      );
+      uniqueTickers.forEach((t, i) => {
+        closesByTicker[t] = fetched[i];
+      });
+
+      // Providers whose free tier excludes historical candles (Finnhub) return
+      // nothing here. Rather than a blank backtest, fall back to the stored spot
+      // price and tell the client the returns are approximate.
+      const haveCandles = Object.values(closesByTicker).some((rows) => rows.length > 0);
 
       // Per-egg return
       type Row = {
@@ -118,6 +128,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         latestClose: number | null;
         returnPct: number | null;
         daysHeld: number;
+        /** Flag price looks corrupt; excluded from the rollups. */
+        suspect: boolean;
       };
       const rows: Row[] = [];
       for (const e of eggs) {
@@ -125,12 +137,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         const closes = closesByTicker[t] || [];
         const flagDate = toYmd(e.priceAtFlagDate ?? e.createdAt);
         // find first close on or after flagDate
-        const startClose = closes.find((c) => c.date >= flagDate)?.close ?? e.priceAtFlag ?? null;
-        const latestClose = closes.length ? closes[closes.length - 1].close : null;
-        let returnPct: number | null = null;
-        if (startClose && latestClose && startClose > 0) {
-          returnPct = ((latestClose - startClose) / startClose) * 100;
-        }
+        const {
+          flagClose: startClose,
+          latestClose,
+          returnPct,
+          suspect,
+        } = scoreReturn({
+          closes,
+          flagDate,
+          priceAtFlag: e.priceAtFlag,
+          currentPrice: e.currentPrice,
+        });
         const daysHeld = Math.max(
           0,
           Math.floor((Date.now() - (e.priceAtFlagDate ?? e.createdAt)) / 86400_000)
@@ -148,6 +165,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           latestClose,
           returnPct,
           daysHeld,
+          suspect,
         });
       }
 
@@ -203,7 +221,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           }
         : null;
 
-      res.json({ rows, byTheme, bySector, byHop, overall, generatedAt: Date.now() });
+      res.json({
+        rows,
+        byTheme,
+        bySector,
+        byHop,
+        overall,
+        generatedAt: Date.now(),
+        // "close" = real daily closes; "spot" = last refreshed quote, because
+        // the configured provider's plan doesn't include historical candles.
+        priceSource: haveCandles ? "close" : "spot",
+        // Rows dropped from scoring because their flag price looks corrupt.
+        suspectCount: rows.filter((r) => r.suspect).length,
+      });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }

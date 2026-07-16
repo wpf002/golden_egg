@@ -9,6 +9,7 @@ import { createServer } from "node:http";
 import { validateProviders, env } from "./config";
 import { logger } from "./logger";
 import { apiLimiter, expensiveLimiter } from "./middleware/rate-limit";
+import { startScheduledTasks, stopScheduledTasks } from "./scheduler";
 
 // Fail loud at boot if the selected providers are missing credentials,
 // rather than lazily on the first scan/price request.
@@ -106,6 +107,18 @@ app.use("/api/prices/refresh", expensiveLimiter);
     },
     () => {
       logger.info({ port: env.PORT, env: env.NODE_ENV }, "serving");
+      startScheduledTasks();
     }
   );
+
+  // Graceful shutdown: stop taking work, then close the listener.
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => {
+      logger.info({ signal }, "shutting down");
+      stopScheduledTasks();
+      httpServer.close(() => process.exit(0));
+      // Don't hang forever on lingering keep-alive connections.
+      setTimeout(() => process.exit(0), 5000).unref();
+    });
+  }
 })();

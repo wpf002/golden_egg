@@ -27,6 +27,15 @@ const schema = z.object({
   SCAN_MAX_CATALYSTS: z.coerce.number().int().positive().default(25),
   SCAN_MAX_CREDITS: z.coerce.number().int().positive().default(400),
 
+  // Data
+  DB_PATH: z.string().default("./data.db"),
+
+  // Background jobs
+  /** Recurring scan schedule, as a standard 5-field schedule expression. Empty disables it. */
+  SCAN_SCHEDULE: z.string().default(""),
+  /** How often to sweep expired ripple-cache rows, in minutes. */
+  CACHE_SWEEP_MINUTES: z.coerce.number().int().positive().default(360),
+
   // Server
   PORT: z.coerce.number().default(5000),
   NODE_ENV: z.string().default("development"),

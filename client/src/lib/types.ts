@@ -66,6 +66,8 @@ export type BacktestRow = {
   latestClose: number | null;
   returnPct: number | null;
   daysHeld: number;
+  /** Flag price looks corrupt (placeholder/parse error) — excluded from rollups. */
+  suspect?: boolean;
 };
 
 export type BacktestRollup = {
@@ -90,6 +92,14 @@ export type BacktestResult = {
     avgReturn: number;
   } | null;
   generatedAt: number;
+  /**
+   * "close" = returns computed from real daily closes.
+   * "spot"  = the provider's plan has no historical candles, so the latest
+   *           refreshed quote stood in — returns are approximate.
+   */
+  priceSource?: "close" | "spot";
+  /** How many rows were dropped from scoring due to a corrupt flag price. */
+  suspectCount?: number;
 };
 
 export type GraphNode = {

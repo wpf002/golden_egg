@@ -28,8 +28,8 @@ export default function BacktestPage() {
       <div className="mb-6 flex items-center gap-3 flex-wrap">
         <div className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
           Pragmatic backtest: for every flagged egg, we compute return from the first close on or after its
-          flag date through the latest close. Results roll up by theme, sector, and hop distance. Uses daily
-          closes fetched via finance connector — one call per unique ticker.
+          flag date through the latest close. Results roll up by theme, sector, and hop distance — one call
+          per unique ticker.
         </div>
         <Button
           onClick={() => runMut.mutate()}
@@ -41,6 +41,30 @@ export default function BacktestPage() {
           {runMut.isPending ? "Running…" : "Run backtest"}
         </Button>
       </div>
+
+      {result?.priceSource === "spot" && (
+        <div
+          className="mb-6 rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-xs text-muted-foreground"
+          data-testid="banner-spot-prices"
+        >
+          <span className="font-medium text-primary">Approximate returns.</span> Your quotes provider&rsquo;s
+          plan doesn&rsquo;t include historical daily candles, so the latest refreshed price stands in for the
+          closing price. Point-in-time accuracy needs a candles-capable plan.
+        </div>
+      )}
+
+      {!!result?.suspectCount && (
+        <div
+          className="mb-6 rounded-md border border-rose-400/30 bg-rose-400/5 px-4 py-3 text-xs text-muted-foreground"
+          data-testid="banner-suspect-rows"
+        >
+          <span className="font-medium text-rose-400">
+            {result.suspectCount} {result.suspectCount === 1 ? "egg" : "eggs"} excluded.
+          </span>{" "}
+          Their recorded flag price looks corrupt (a placeholder left by an early data import), which would
+          otherwise produce five-figure returns and skew every rollup.
+        </div>
+      )}
 
       {result?.overall && (
         <div className="grid grid-cols-4 gap-3 mb-6">

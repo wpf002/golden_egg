@@ -18,29 +18,19 @@ import type {
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
-import { eq, desc, sql } from "drizzle-orm";
-import { log } from "./logger";
+import { eq, desc, sql, lt, and, isNotNull } from "drizzle-orm";
+import { env } from "./config";
+import { runMigrations } from "./migrate";
 
-const logger = log("storage");
-
-const sqlite = new Database("data.db");
+export const sqlite = new Database(env.DB_PATH);
 sqlite.pragma("journal_mode = WAL");
+// Enforce referential intent and make concurrent readers wait rather than fail.
+sqlite.pragma("foreign_keys = ON");
+sqlite.pragma("busy_timeout = 5000");
 
-// Additive migrations — run every startup, tolerant to already-exists.
-function addColumnIfMissing(table: string, col: string, decl: string) {
-  try {
-    const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-    if (!cols.some((c) => c.name === col)) {
-      sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${decl}`);
-      logger.info({ table, col }, "migration: column added");
-    }
-  } catch (e) {
-    logger.warn({ err: e, table, col }, "migration failed");
-  }
-}
-addColumnIfMissing("golden_eggs", "current_price", "REAL");
-addColumnIfMissing("golden_eggs", "price_refreshed_at", "INTEGER");
-addColumnIfMissing("ripple_cache", "expires_at", "INTEGER");
+// Versioned migrations, applied once at startup. (This replaced a set of
+// unversioned addColumnIfMissing calls that ran on every boot.)
+runMigrations(sqlite);
 
 export const db = drizzle(sqlite);
 
@@ -91,6 +81,8 @@ export interface IStorage {
   putCache(c: InsertRippleCache): Promise<RippleCache>;
   incrementCacheHit(id: number): Promise<void>;
   deleteCache(themeHash: string): Promise<void>;
+  /** Delete expired cache rows. Returns how many were removed. */
+  sweepExpiredCache(nowTs: number): Promise<number>;
 
   // Scan runs
   /**
@@ -304,6 +296,15 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteCache(themeHash: string) {
     db.delete(rippleCache).where(eq(rippleCache.themeHash, themeHash)).run();
+  }
+  async sweepExpiredCache(nowTs: number) {
+    // Rows with a null expiresAt predate the TTL column — leave them alone
+    // rather than silently discarding cached work.
+    const res = db
+      .delete(rippleCache)
+      .where(and(isNotNull(rippleCache.expiresAt), lt(rippleCache.expiresAt, nowTs)))
+      .run();
+    return res.changes;
   }
 
   // Scan runs
