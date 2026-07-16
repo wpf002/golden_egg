@@ -16,6 +16,25 @@ export const eggQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(500).optional(),
 });
 
+/** Manual catalyst: a URL to fetch, or text pasted directly. At least one. */
+export const manualCatalystSchema = z
+  .object({
+    url: z.string().url().max(2000).optional(),
+    text: z.string().min(1).max(100_000).optional(),
+    title: z.string().max(300).optional(),
+  })
+  .refine((v) => !!(v.url || v.text), { message: "provide a url or text" })
+  .refine((v) => !v.url || /^https?:\/\//i.test(v.url), {
+    message: "url must be http(s) — other schemes aren't fetched",
+    path: ["url"],
+  });
+
+export const exportQuerySchema = z.object({
+  topN: z.coerce.number().int().positive().max(200).optional(),
+  sinceDays: z.coerce.number().int().positive().max(3650).optional(),
+  download: z.coerce.boolean().optional(),
+});
+
 /**
  * Parse a route param as a positive int. Writes a 400 and returns null when it
  * doesn't parse, so callers can `if (id === null) return;`.

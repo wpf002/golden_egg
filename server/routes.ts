@@ -4,7 +4,15 @@ import { storage } from "./storage";
 import { runFullScan, ScanInProgressError } from "./pipeline/scan";
 import { insertWatchlistSchema } from "@shared/schema";
 import { fetchQuotes, fetchDailyCloses, toYmd } from "./pipeline/finance";
-import { parseId, eggQuerySchema, zodMessage } from "./middleware/validate";
+import {
+  parseId,
+  eggQuerySchema,
+  zodMessage,
+  manualCatalystSchema,
+  exportQuerySchema,
+} from "./middleware/validate";
+import { addManualCatalyst, ManualCatalystError } from "./pipeline/manual-catalyst";
+import { renderMarkdownReport } from "./lib/report";
 import { mapWithConcurrency } from "./lib/concurrency";
 import { scoreReturn } from "./lib/backtest";
 import { evaluateAlerts } from "./pipeline/alerts";
@@ -280,6 +288,38 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (eggId === null) return;
       await storage.removeFromWatchlist(eggId);
       res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // ---------- Manual catalyst ----------
+  app.post("/api/catalysts/manual", async (req, res) => {
+    try {
+      const body = manualCatalystSchema.safeParse(req.body);
+      if (!body.success) return res.status(400).json({ error: zodMessage(body.error) });
+      const result = await addManualCatalyst(body.data);
+      res.status(result.status === "created" ? 201 : 200).json(result);
+    } catch (e) {
+      if (e instanceof ManualCatalystError) {
+        return res.status(e.status).json({ error: e.message });
+      }
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // ---------- Export ----------
+  app.get("/api/export/markdown", async (req, res) => {
+    try {
+      const q = exportQuerySchema.safeParse(req.query);
+      if (!q.success) return res.status(400).json({ error: zodMessage(q.error) });
+      const eggs = await storage.listEggs({ limit: 500 });
+      const md = renderMarkdownReport(eggs, { topN: q.data.topN ?? 20, sinceDays: q.data.sinceDays });
+      res.type("text/markdown; charset=utf-8");
+      if (q.data.download) {
+        res.setHeader("Content-Disposition", `attachment; filename="golden-egg-${toYmd(Date.now())}.md"`);
+      }
+      res.send(md);
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }

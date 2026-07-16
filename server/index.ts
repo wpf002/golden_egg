@@ -68,6 +68,8 @@ app.use("/api", apiLimiter);
 app.use("/api/scan/run", expensiveLimiter);
 app.use("/api/backtest/run", expensiveLimiter);
 app.use("/api/prices/refresh", expensiveLimiter);
+// Spends a cheap-tier LLM call and fetches an arbitrary URL — same treatment.
+app.use("/api/catalysts/manual", expensiveLimiter);
 
 (async () => {
   await registerRoutes(httpServer, app);

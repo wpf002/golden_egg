@@ -223,15 +223,44 @@ show "flag price?" instead of a fake moonshot.
 because confidences cluster in ~0.70–0.83 — a heatmap that doesn't discriminate is just a list. Now
 normalized across the observed min..max.
 
-### Open observations (not yet acted on)
+---
 
-- **Sector sprawl.** Sectors are freeform LLM output, so the heatmap has a long tail of count-1 cells:
-  "Technology / Financials", "Financials / Mortgage REIT", "Industrials / Engineering & Construction".
-  Themes were canonicalized for exactly this reason (`CANONICAL_THEMES` + `coerceToCanonical`); sectors never
-  were. A `CANONICAL_SECTORS` enum + coercion would sharpen the heatmap and any sector rollup. Cheap to do,
-  needs a decision on the list.
-- **Duplicate eggs.** The same ticker appears repeatedly (two ALIT rows, two FIX, two FICO). Worth a dedupe
-  pass or a uniqueness rule per (catalyst, ticker).
+## Phase 6 — Candles provider + data cleanup  🟡 *(2026-07-16)*
+
+- [x] **Polygon provider** — quotes and candles now resolve **separately** (`CANDLES_PROVIDER`), because no
+      free tier does both: Finnhub free has real-time quotes but no candles; Polygon free has candles but is
+      EOD-only at ~5 req/min. Polygon's `quotes()` uses grouped daily bars — **one** request for all tickers
+      rather than one each, which the 5/min cap would otherwise blow — behind a rate limiter. Provider
+      contract extracted to `providers/types.ts` so finnhub/polygon depend on the interface, not each other.
+      **Needs `POLYGON_API_KEY` to verify against the live API;** 9 mocked tests cover the mapping,
+      the ms-vs-seconds epoch trap, and the trading-day walk-back.
+- [x] **Canonical sectors** — `CANONICAL_SECTORS` + `coerceToSector`, mirroring the theme coercion.
+      **46 → 9 sectors**, nothing fell to "Other". The model's original is preserved in a new `sector_detail`
+      column (migration 0002) rather than discarded — "Industrials / Cash Logistics" is real signal. 39 eggs
+      keep richer detail, surfaced in the detail sheet.
+- [x] **Dedupe eggs** — unique index on `(catalystId, ticker)` (migration 0003). **Correction to an earlier
+      claim:** the same ticker across *different* catalysts is legitimate (CEG appears 4× under 4 catalysts,
+      each with its own thesis) — only same-catalyst repeats are dupes. The generated migration would have
+      failed against existing dupes, so it cleans them first (keeping the lowest id) and clears dependent
+      rows. Verified on a copy: 79 → 74 eggs, 5 dupe groups → 0, constraint enforced. `createEgg` uses
+      `onConflictDoNothing`; `eggsCreated` counts only real inserts.
+- [x] **Route tests** — 20 tests against a real temp DB (`DB_PATH` points at a tmpdir before import), rather
+      than a DI refactor across the nine modules that import storage. Verified no test rows leak into `data.db`.
+- [x] **Manual "add catalyst"** — paste a URL or text; one cheap-tier call summarizes and places it on a
+      canonical theme, then the next scan analyzes it through the usual cache. Dedupes on the source, and the
+      classifier declines non-catalysts (verified: it correctly rejected a Wikipedia reference page).
+- [x] **Markdown export** — `GET /api/export/markdown?topN=&sinceDays=&download=`. Ranked by
+      confidence × novelty, reuses the corrupt-flag guard, no network/credits.
+- [ ] **Fix 6 corrupt flag prices** — ⛔ **blocked on `POLYGON_API_KEY`.** `server/scripts/repair-flag-prices.ts`
+      is written (dry-run by default) and backfills the *true* historical close on each egg's flag date.
+      Doing it without candles would mean nulling them, which resets returns to 0% and erases real history —
+      worse than leaving them excluded by the suspect guard.
+- [ ] **Sparklines / backtest "as-of"** — ⛔ same blocker; unblocked the moment Polygon has a key.
+
+**Bug found while reading the export output:** 8 catalysts had *relative* `source_url`s
+("/pressroom/releases/press587.php") from the EIA feed, rendering as dead links in the UI and exports.
+`ingest.ts` now resolves item links against the feed URL (`resolveLink`), and a repair script fixed the 8
+existing rows — verified the resolved URL returns 200 and that the feed itself declares `www.eia.gov` as base.
 
 **Medium:**
 - Manual "add catalyst" flow (paste URL → summarize → queue ripple).

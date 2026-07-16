@@ -37,6 +37,24 @@ function isNoise(text: string): boolean {
   return NOISE_PATTERNS.some((r) => r.test(text));
 }
 
+/**
+ * Resolve an RSS item link against its feed URL.
+ *
+ * Some feeds (EIA, notably) emit relative links like "/pressroom/releases/
+ * press587.php". Stored raw, those render as dead "source" links in the UI and
+ * in exports. Returns null when there's nothing usable rather than a broken href.
+ */
+export function resolveLink(link: string | null | undefined, feedUrl: string): string | null {
+  const raw = link?.trim();
+  if (!raw) return null;
+  try {
+    // Absolute input is returned unchanged; relative is resolved against the feed.
+    return new URL(raw, feedUrl).href;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------
 // SEC EDGAR \u2014 recent 8-K filings for a keyword
 // ---------------------------------------------------------------
@@ -134,7 +152,7 @@ export async function ingestRss(): Promise<CatalystCandidate[]> {
           summary: it.description.slice(0, 400),
           theme: feed.theme,
           sourceType: "rss",
-          sourceUrl: it.link || null,
+          sourceUrl: resolveLink(it.link, feed.url),
           strengthScore: 0.4,
           firstSeenAt: nowMs(),
           lastSeenAt: nowMs(),

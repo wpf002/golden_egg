@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Play, TrendingUp, Zap, Database } from "lucide-react";
+import { Play, TrendingUp, Zap, Database, Download } from "lucide-react";
 import { useState } from "react";
 import type { Catalyst, GoldenEggWithCatalyst, ScanRun } from "@/lib/types";
 import { EggCard } from "@/components/EggCard";
@@ -69,15 +69,28 @@ export default function Overview() {
             and shovels. Everything you see is a public-market ticker.
           </p>
         </div>
-        <Button
-          onClick={() => scanMut.mutate()}
-          disabled={scanMut.isPending}
-          className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
-          data-testid="button-run-scan"
-        >
-          <Play size={14} className="mr-2" />
-          {scanMut.isPending ? "Scanning…" : "Run scan now"}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* A plain link, not a fetch: lets the browser handle the download. */}
+          <Button variant="outline" asChild>
+            <a
+              href="/api/export/markdown?topN=20&download=true"
+              download
+              data-testid="button-export-markdown"
+            >
+              <Download size={14} className="mr-2" />
+              Export top 20
+            </a>
+          </Button>
+          <Button
+            onClick={() => scanMut.mutate()}
+            disabled={scanMut.isPending}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            data-testid="button-run-scan"
+          >
+            <Play size={14} className="mr-2" />
+            {scanMut.isPending ? "Scanning…" : "Run scan now"}
+          </Button>
+        </div>
       </div>
 
       {error && (

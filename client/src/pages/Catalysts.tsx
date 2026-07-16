@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { EggDetailSheet } from "@/components/EggDetailSheet";
 import { LoadingSkeleton, ErrorState, EmptyState } from "@/components/QueryState";
+import { AddCatalystDialog } from "@/components/AddCatalystDialog";
 
 export default function CatalystsPage() {
   const catalystsQ = useQuery<Catalyst[]>({ queryKey: ["/api/catalysts"] });
@@ -41,6 +42,7 @@ export default function CatalystsPage() {
         <div className="ml-auto text-xs text-muted-foreground tabular">
           {filtered.length} catalysts · {catalysts.filter((c) => c.rippleAnalyzed).length} analyzed
         </div>
+        <AddCatalystDialog />
       </div>
 
       {catalystsQ.error && (
