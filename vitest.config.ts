@@ -10,10 +10,11 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["server/**/*.test.ts", "shared/**/*.test.ts"],
+    // client/src/lib holds pure logic (no DOM), so it runs in the node env too.
+    include: ["server/**/*.test.ts", "shared/**/*.test.ts", "client/src/lib/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      include: ["server/**/*.ts", "shared/**/*.ts"],
+      include: ["server/**/*.ts", "shared/**/*.ts", "client/src/lib/**/*.ts"],
     },
   },
 });

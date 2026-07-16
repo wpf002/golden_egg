@@ -35,6 +35,8 @@ const schema = z.object({
   SCAN_SCHEDULE: z.string().default(""),
   /** How often to sweep expired ripple-cache rows, in minutes. */
   CACHE_SWEEP_MINUTES: z.coerce.number().int().positive().default(360),
+  /** Alert when a watchlist egg's return-vs-flag moves this far (%), either way. */
+  ALERT_THRESHOLD_PCT: z.coerce.number().positive().default(10),
 
   // Server
   PORT: z.coerce.number().default(5000),

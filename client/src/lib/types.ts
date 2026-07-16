@@ -53,6 +53,19 @@ export type GoldenEggDetail = GoldenEgg & {
   onWatchlist?: boolean;
 };
 
+export type PriceAlert = {
+  id: number;
+  eggId: number;
+  direction: "gain" | "loss";
+  thresholdPct: number;
+  returnPct: number;
+  priceAtAlert: number;
+  createdAt: number;
+  acknowledgedAt: number | null;
+  ticker: string;
+  companyName: string;
+};
+
 export type BacktestRow = {
   eggId: number;
   ticker: string;

@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { Logo } from "./Logo";
 import { Sparkles, Zap, Network, Star, Activity, LineChart } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import type { ScanRun } from "@/lib/types";
+import type { ScanRun, PriceAlert } from "@/lib/types";
 
 const navItems = [
   { href: "/", label: "Overview", icon: Sparkles },
@@ -19,6 +19,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     queryKey: ["/api/scans/latest"],
     refetchInterval: 60_000,
   });
+  const { data: alerts } = useQuery<PriceAlert[]>({ queryKey: ["/api/alerts"] });
+  const openAlerts = (alerts ?? []).filter((a) => !a.acknowledgedAt).length;
 
   return (
     <div className="dark h-full w-full grid grid-cols-[240px_1fr] grid-rows-[auto_1fr] bg-background text-foreground">
@@ -54,6 +56,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <item.icon size={15} strokeWidth={1.75} />
                 {item.label}
+                {item.href === "/watchlist" && openAlerts > 0 && (
+                  <span
+                    className="ml-auto rounded-full bg-primary px-1.5 py-0.5 font-mono text-[10px] leading-none tabular text-primary-foreground"
+                    data-testid="badge-open-alerts"
+                    title={`${openAlerts} unread price ${openAlerts === 1 ? "alert" : "alerts"}`}
+                  >
+                    {openAlerts}
+                  </span>
+                )}
               </Link>
             );
           })}

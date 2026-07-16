@@ -1,4 +1,13 @@
-import { catalysts, nodes, edges, goldenEggs, watchlist, rippleCache, scanRuns } from "@shared/schema";
+import {
+  catalysts,
+  nodes,
+  edges,
+  goldenEggs,
+  watchlist,
+  rippleCache,
+  scanRuns,
+  priceAlerts,
+} from "@shared/schema";
 import type {
   Catalyst,
   InsertCatalyst,
@@ -15,10 +24,13 @@ import type {
   InsertRippleCache,
   ScanRun,
   InsertScanRun,
+  PriceAlert,
+  InsertPriceAlert,
+  PriceAlertWithEgg,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
-import { eq, desc, sql, lt, and, isNotNull } from "drizzle-orm";
+import { eq, desc, sql, lt, and, isNotNull, isNull } from "drizzle-orm";
 import { env } from "./config";
 import { runMigrations } from "./migrate";
 
@@ -75,6 +87,14 @@ export interface IStorage {
   removeFromWatchlist(eggId: number): Promise<void>;
   listWatchlist(): Promise<GoldenEggWithCatalyst[]>;
   isOnWatchlist(eggId: number): Promise<boolean>;
+
+  // Price alerts
+  createAlert(a: InsertPriceAlert): Promise<PriceAlert>;
+  /** An unacknowledged alert for this egg+direction, if one exists. */
+  getOpenAlert(eggId: number, direction: string): Promise<PriceAlert | undefined>;
+  listAlerts(limit?: number): Promise<PriceAlertWithEgg[]>;
+  acknowledgeAlert(id: number, ts: number): Promise<void>;
+  acknowledgeAllAlerts(ts: number): Promise<number>;
 
   // Ripple cache
   getCache(themeHash: string): Promise<RippleCache | undefined>;
@@ -279,6 +299,45 @@ export class DatabaseStorage implements IStorage {
   async isOnWatchlist(eggId: number) {
     const r = db.select().from(watchlist).where(eq(watchlist.eggId, eggId)).get();
     return !!r;
+  }
+
+  // Price alerts
+  async createAlert(a: InsertPriceAlert) {
+    return db.insert(priceAlerts).values(a).returning().get();
+  }
+  async getOpenAlert(eggId: number, direction: string) {
+    return db
+      .select()
+      .from(priceAlerts)
+      .where(
+        and(
+          eq(priceAlerts.eggId, eggId),
+          eq(priceAlerts.direction, direction),
+          isNull(priceAlerts.acknowledgedAt)
+        )
+      )
+      .get();
+  }
+  async listAlerts(limit = 50) {
+    const rows = db
+      .select({ alert: priceAlerts, egg: goldenEggs })
+      .from(priceAlerts)
+      .leftJoin(goldenEggs, eq(priceAlerts.eggId, goldenEggs.id))
+      .orderBy(desc(priceAlerts.createdAt))
+      .limit(limit)
+      .all();
+    return rows.map((r) => ({
+      ...r.alert,
+      ticker: r.egg?.ticker ?? "—",
+      companyName: r.egg?.companyName ?? "(deleted egg)",
+    })) as PriceAlertWithEgg[];
+  }
+  async acknowledgeAlert(id: number, ts: number) {
+    db.update(priceAlerts).set({ acknowledgedAt: ts }).where(eq(priceAlerts.id, id)).run();
+  }
+  async acknowledgeAllAlerts(ts: number) {
+    return db.update(priceAlerts).set({ acknowledgedAt: ts }).where(isNull(priceAlerts.acknowledgedAt)).run()
+      .changes;
   }
 
   // Ripple cache

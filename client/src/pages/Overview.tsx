@@ -8,13 +8,15 @@ import type { Catalyst, GoldenEggWithCatalyst, ScanRun } from "@/lib/types";
 import { EggCard } from "@/components/EggCard";
 import { EggDetailSheet } from "@/components/EggDetailSheet";
 import { formatRelative } from "@/components/AppShell";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { LoadingSkeleton, ErrorState, EmptyState } from "@/components/QueryState";
+import { SectorHeatmap } from "@/components/SectorHeatmap";
 
 export default function Overview() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [openEggId, setOpenEggId] = useState<number | null>(null);
+  const [, setLocation] = useLocation();
 
   const eggsQ = useQuery<GoldenEggWithCatalyst[]>({ queryKey: ["/api/eggs"] });
   const catalystsQ = useQuery<Catalyst[]>({ queryKey: ["/api/catalysts"] });
@@ -122,6 +124,24 @@ export default function Overview() {
               sublabel={`across ${scans.length} scans`}
             />
           </div>
+
+          {/* Sector heatmap */}
+          {eggs.length > 0 && (
+            <section className="mb-10">
+              <div className="flex items-baseline justify-between mb-4">
+                <h3 className="text-sm uppercase tracking-widest text-muted-foreground">
+                  Where the conviction sits
+                </h3>
+                <span className="text-xs text-muted-foreground/70">
+                  size = egg count · shade = avg confidence
+                </span>
+              </div>
+              <SectorHeatmap
+                eggs={eggs}
+                onSelectSector={(s) => setLocation(`/eggs?sector=${encodeURIComponent(s)}`)}
+              />
+            </section>
+          )}
 
           {/* Top eggs */}
           <section className="mb-10">

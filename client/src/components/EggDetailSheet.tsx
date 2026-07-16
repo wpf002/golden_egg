@@ -5,8 +5,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { formatRelative } from "@/components/AppShell";
 import { ConfidenceBar } from "@/components/EggCard";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ExternalLink, Star, Clock, TrendingUp, RefreshCw } from "lucide-react";
+import { ExternalLink, Star, Clock, TrendingUp, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { RipplePathViz } from "@/components/RipplePathViz";
+import { returnVsFlag, deltaColor } from "@/lib/returns";
 
 export function EggDetailSheet({ eggId, onClose }: { eggId: number | null; onClose: () => void }) {
   const open = eggId != null;
@@ -50,16 +52,11 @@ export function EggDetailSheet({ eggId, onClose }: { eggId: number | null; onClo
     if (egg?.ripplePath) path = JSON.parse(egg.ripplePath);
   } catch {}
 
-  const hasPrices = egg?.priceAtFlag != null && egg?.currentPrice != null && egg.priceAtFlag > 0;
-  const deltaPct = hasPrices ? ((egg!.currentPrice! - egg!.priceAtFlag!) / egg!.priceAtFlag!) * 100 : null;
-  const deltaColor =
-    deltaPct == null
-      ? "text-muted-foreground"
-      : deltaPct > 0
-        ? "text-emerald-400"
-        : deltaPct < 0
-          ? "text-rose-400"
-          : "text-muted-foreground";
+  const { pct: deltaPct, suspect: badFlagPrice } = returnVsFlag(
+    egg?.priceAtFlag ?? null,
+    egg?.currentPrice ?? null
+  );
+  const deltaClass = deltaColor(deltaPct);
 
   const hopLabel =
     egg?.hopDistance === 1
@@ -139,9 +136,14 @@ export function EggDetailSheet({ eggId, onClose }: { eggId: number | null; onClo
               <PriceCell label="Current" value={egg.currentPrice} />
               <div className="border border-card-border rounded-md p-3 bg-card">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Return</div>
-                <div className={`font-mono text-lg tabular ${deltaColor}`} data-testid="text-detail-return">
+                <div className={`font-mono text-lg tabular ${deltaClass}`} data-testid="text-detail-return">
                   {deltaPct == null ? "—" : `${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(1)}%`}
                 </div>
+                {badFlagPrice && (
+                  <div className="mt-1 text-[10px] leading-tight text-muted-foreground/70">
+                    Flag price looks corrupt — return suppressed.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -178,24 +180,7 @@ export function EggDetailSheet({ eggId, onClose }: { eggId: number | null; onClo
             {/* Ripple path */}
             {path.length > 0 && (
               <Section label="Ripple path">
-                <div className="flex flex-col gap-1.5">
-                  {path.map((p, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm">
-                      <span className="font-mono text-[10px] text-muted-foreground/60 w-4 tabular">
-                        {i + 1}
-                      </span>
-                      <span className="text-foreground">{p.node}</span>
-                      {p.relation && (
-                        <>
-                          <ArrowRight size={12} className="text-muted-foreground/50" />
-                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                            {p.relation}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <RipplePathViz path={path} ticker={egg?.ticker} />
               </Section>
             )}
 

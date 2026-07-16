@@ -7,6 +7,8 @@ import { fetchQuotes, fetchDailyCloses, toYmd } from "./pipeline/finance";
 import { parseId, eggQuerySchema, zodMessage } from "./middleware/validate";
 import { mapWithConcurrency } from "./lib/concurrency";
 import { scoreReturn } from "./lib/backtest";
+import { evaluateAlerts } from "./pipeline/alerts";
+import { env } from "./config";
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   // ---------- Catalysts ----------
@@ -76,7 +78,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           refreshed++;
         }
       }
-      res.json({ refreshed, tickers: tickers.length });
+      // Alerts ride along on the refresh the user already triggered: quote data
+      // only, so no extra cost and no surprise background traffic.
+      const alerts = await evaluateAlerts(env.ALERT_THRESHOLD_PCT);
+
+      res.json({ refreshed, tickers: tickers.length, alertsCreated: alerts.created });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }
@@ -274,6 +280,35 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (eggId === null) return;
       await storage.removeFromWatchlist(eggId);
       res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // ---------- Price alerts ----------
+  app.get("/api/alerts", async (_req, res) => {
+    try {
+      res.json(await storage.listAlerts(50));
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  app.post("/api/alerts/:id/ack", async (req, res) => {
+    try {
+      const id = parseId(req.params.id, res);
+      if (id === null) return;
+      await storage.acknowledgeAlert(id, Date.now());
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  app.post("/api/alerts/ack-all", async (_req, res) => {
+    try {
+      const acknowledged = await storage.acknowledgeAllAlerts(Date.now());
+      res.json({ acknowledged });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }

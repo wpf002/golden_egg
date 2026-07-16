@@ -3,6 +3,7 @@ import { Star, TrendingUp, Clock, ArrowRight } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { returnVsFlag, deltaColor } from "@/lib/returns";
 
 export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: (id: number) => void }) {
   const qc = useQueryClient();
@@ -31,17 +32,9 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
 
   const hopBadge = egg.hopDistance === 1 ? "1st-order" : egg.hopDistance === 2 ? "2nd-order" : "3rd-order";
 
-  // Price delta — shown only when both flag & current are populated
-  const hasPrices = egg.priceAtFlag != null && egg.currentPrice != null && egg.priceAtFlag > 0;
-  const deltaPct = hasPrices ? ((egg.currentPrice! - egg.priceAtFlag!) / egg.priceAtFlag!) * 100 : null;
-  const deltaColor =
-    deltaPct == null
-      ? "text-muted-foreground"
-      : deltaPct > 0
-        ? "text-emerald-400"
-        : deltaPct < 0
-          ? "text-rose-400"
-          : "text-muted-foreground";
+  // Price delta — suppressed when the flag price is corrupt (see lib/returns).
+  const { pct: deltaPct, suspect: badFlagPrice } = returnVsFlag(egg.priceAtFlag, egg.currentPrice);
+  const deltaClass = deltaColor(deltaPct);
 
   return (
     <div
@@ -72,9 +65,18 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
                 ${egg.currentPrice.toFixed(2)}
               </div>
               {deltaPct != null && (
-                <div className={`font-mono text-[10px] tabular ${deltaColor}`}>
+                <div className={`font-mono text-[10px] tabular ${deltaClass}`}>
                   {deltaPct >= 0 ? "+" : ""}
                   {deltaPct.toFixed(1)}%
+                </div>
+              )}
+              {badFlagPrice && (
+                <div
+                  className="text-[10px] text-muted-foreground/70"
+                  title="The recorded flag price looks corrupt, so return-vs-flag is unreliable for this egg."
+                  data-testid={`text-bad-flag-${egg.id}`}
+                >
+                  flag price?
                 </div>
               )}
             </div>

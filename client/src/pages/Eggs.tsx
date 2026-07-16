@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
+import { useSearch, useLocation } from "wouter";
 import type { GoldenEggWithCatalyst } from "@/lib/types";
 import { EggCard } from "@/components/EggCard";
 import { EggDetailSheet } from "@/components/EggDetailSheet";
@@ -9,10 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export default function EggsPage() {
   const { data: eggs = [], isLoading } = useQuery<GoldenEggWithCatalyst[]>({ queryKey: ["/api/eggs"] });
   const [search, setSearch] = useState("");
-  const [sector, setSector] = useState("all");
   const [minConf, setMinConf] = useState("0.5");
   const [sortBy, setSortBy] = useState("score");
   const [openEggId, setOpenEggId] = useState<number | null>(null);
+
+  // The sector filter lives in the URL (?sector=), not component state: it lets
+  // the Overview heatmap deep-link here and makes a filtered view shareable.
+  // Deriving it rather than syncing into state also avoids a setState-in-effect.
+  // (wouter's hash navigate puts the query on the real location.search.)
+  const searchParams = useSearch();
+  const [, setLocation] = useLocation();
+  const sector = new URLSearchParams(searchParams).get("sector") ?? "all";
+  const setSector = (s: string) =>
+    setLocation(s === "all" ? "/eggs" : `/eggs?sector=${encodeURIComponent(s)}`);
 
   const sectors = useMemo(() => {
     const s = new Set<string>();

@@ -113,6 +113,32 @@ export const watchlist = sqliteTable("watchlist", {
 });
 
 /**
+ * PRICE ALERTS — Recorded when a watchlist egg's return-vs-flag crosses a
+ * threshold. Uses only quote data (no LLM), so evaluating these is free.
+ *
+ * One row per crossing event. A new alert for the same egg+direction is not
+ * recorded while an earlier one is still unacknowledged, so a stock parked
+ * above the threshold doesn't generate a fresh alert on every check.
+ */
+export const priceAlerts = sqliteTable(
+  "price_alerts",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eggId: integer("egg_id").notNull(),
+    direction: text("direction").notNull(), // "gain" | "loss"
+    thresholdPct: real("threshold_pct").notNull(), // the threshold that was crossed
+    returnPct: real("return_pct").notNull(), // return-vs-flag at trigger time
+    priceAtAlert: real("price_at_alert").notNull(),
+    createdAt: integer("created_at").notNull(),
+    acknowledgedAt: integer("acknowledged_at"),
+  },
+  (t) => ({
+    eggIdx: index("price_alerts_egg_idx").on(t.eggId),
+    createdIdx: index("price_alerts_created_idx").on(t.createdAt),
+  })
+);
+
+/**
  * RIPPLE CACHE — Cache of (theme_hash -> LLM output JSON) so repeated catalysts skip premium calls.
  * This is the primary credit-saving mechanism.
  */
@@ -150,6 +176,7 @@ export const insertEdgeSchema = createInsertSchema(edges).omit({ id: true });
 export const insertGoldenEggSchema = createInsertSchema(goldenEggs).omit({ id: true });
 export const insertWatchlistSchema = createInsertSchema(watchlist).omit({ id: true });
 export const insertRippleCacheSchema = createInsertSchema(rippleCache).omit({ id: true });
+export const insertPriceAlertSchema = createInsertSchema(priceAlerts).omit({ id: true });
 export const insertScanRunSchema = createInsertSchema(scanRuns).omit({ id: true });
 
 // ---- Types ----
@@ -165,6 +192,12 @@ export type Watchlist = typeof watchlist.$inferSelect;
 export type InsertWatchlist = z.infer<typeof insertWatchlistSchema>;
 export type RippleCache = typeof rippleCache.$inferSelect;
 export type InsertRippleCache = z.infer<typeof insertRippleCacheSchema>;
+export type PriceAlert = typeof priceAlerts.$inferSelect;
+export type InsertPriceAlert = z.infer<typeof insertPriceAlertSchema>;
+export type PriceAlertWithEgg = PriceAlert & {
+  ticker: string;
+  companyName: string;
+};
 export type ScanRun = typeof scanRuns.$inferSelect;
 export type InsertScanRun = z.infer<typeof insertScanRunSchema>;
 

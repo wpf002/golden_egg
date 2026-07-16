@@ -190,14 +190,48 @@ Not done here — it mutates real rows and deserves its own reviewed change.
 
 ---
 
-## Phase 5 — Feature roadmap  *(from the handoff, re-prioritized by value/credit)*
+## Phase 5 — Feature roadmap  🟡 *(first wave done 2026-07-16)*
 
-**High value, low credit cost — do first:**
-- Sparklines on `EggCard` (falls out of Phase 3's OHLCV cache).
-- Price alerts on watchlist eggs (quote calls only, no LLM).
-- Sector heatmap on Overview (zero new backend cost).
-- Inline ripple-path graph in `EggDetailSheet`.
-- Backtest "as of" point-in-time mode.
+**High value, low credit cost:**
+- [x] **Price alerts on watchlist eggs** — new `price_alerts` table (first real incremental migration,
+      `0001`). Evaluated during `POST /api/prices/refresh`, which the user already triggers: quote data only,
+      **zero credits, and no surprise background traffic**. Dedupes while an alert is unacknowledged, so a
+      stock parked past the threshold doesn't re-alert on every check. Skips the known corrupt flag prices.
+      Nav badge + panel on Watchlist; `ALERT_THRESHOLD_PCT` (default 10%). Verified live end-to-end against
+      real quotes, including the dedupe and acknowledge paths.
+- [x] **Sector heatmap on Overview** — cells sized by egg count, shaded by mean confidence; clicking one
+      deep-links to a filtered Eggs view. Derived from the existing query cache — zero new backend cost.
+- [x] **Inline ripple-path viz in `EggDetailSheet`** — the old flat list read as an unordered set; a ripple is
+      directional and ordered, so it now draws the connected chain and marks the terminal tradable ticker.
+      Zero backend cost (the data already ships in the egg payload).
+- [ ] **Sparklines on `EggCard`** — ⛔ **blocked by the data plan, not by effort.** Needs ~30 daily closes per
+      ticker; Finnhub's free tier has no historical candles (`/stock/candle` is paid). The provider interface
+      and OHLCV caching are ready — this becomes a small change the moment a candles-capable plan exists.
+- [ ] **Backtest "as of" point-in-time mode** — ⛔ **same blocker.** Point-in-time scoring is meaningless
+      against spot prices; it needs real historical closes. Deliberately not faked.
+
+**Unblocking both:** a paid Finnhub tier, or Polygon (free tier serves end-of-day candles) behind the
+existing `QuotesProvider` interface. That's the single highest-leverage next step for this phase.
+
+**Bug found by actually opening the app in a browser** (it typechecked and tested clean): the corrupt flag
+prices guarded in the Phase 3 backtest were still leaking into the main UI — the GEV card rendered
+**"+102806.0%"**, which corrodes trust in every other number on screen. `client/src/lib/returns.ts` now
+mirrors the server guard, and `EggCard`/`EggDetailSheet` (which each duplicated the delta maths) share it and
+show "flag price?" instead of a fake moonshot.
+
+**Also fixed after seeing it rendered:** the heatmap's `confidence * 0.6` tint made every cell the same shade,
+because confidences cluster in ~0.70–0.83 — a heatmap that doesn't discriminate is just a list. Now
+normalized across the observed min..max.
+
+### Open observations (not yet acted on)
+
+- **Sector sprawl.** Sectors are freeform LLM output, so the heatmap has a long tail of count-1 cells:
+  "Technology / Financials", "Financials / Mortgage REIT", "Industrials / Engineering & Construction".
+  Themes were canonicalized for exactly this reason (`CANONICAL_THEMES` + `coerceToCanonical`); sectors never
+  were. A `CANONICAL_SECTORS` enum + coercion would sharpen the heatmap and any sector rollup. Cheap to do,
+  needs a decision on the list.
+- **Duplicate eggs.** The same ticker appears repeatedly (two ALIT rows, two FIX, two FICO). Worth a dedupe
+  pass or a uniqueness rule per (catalyst, ticker).
 
 **Medium:**
 - Manual "add catalyst" flow (paste URL → summarize → queue ripple).
