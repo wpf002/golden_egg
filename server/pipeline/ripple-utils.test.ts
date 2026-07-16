@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { coerceToCanonical, extractJson, coerceToSector } from "./ripple-utils";
+import { coerceToCanonical, extractJson, coerceToSector, themeFromId } from "./ripple-utils";
 import { CANONICAL_THEMES, CANONICAL_SECTORS } from "@shared/schema";
 
 describe("coerceToCanonical", () => {
@@ -19,23 +19,85 @@ describe("coerceToCanonical", () => {
     expect(coerceToCanonical("global datacenter buildout wave")).toBe("AI datacenter buildout");
   });
 
-  it("falls back to a truncated passthrough when nothing matches", () => {
-    expect(coerceToCanonical("underwater basket weaving")).toBe("underwater basket weaving");
+  it("REGRESSION: returns '' rather than passing an unknown theme through", () => {
+    // This used to `return raw.slice(0, 60)`, so every invented theme became its
+    // own cache key. The cache hit 0 times in 6 scans while 229 credits burned.
+    expect(coerceToCanonical("underwater basket weaving")).toBe("");
+    expect(coerceToCanonical("z".repeat(100))).toBe("");
   });
 
-  it("truncates the fallback to 60 chars to bound the cache key", () => {
-    const long = "z".repeat(100);
-    expect(coerceToCanonical(long)).toHaveLength(60);
+  it("REGRESSION: rejects the real themes that fragmented the cache", () => {
+    // Straight from ripple_cache — 9 entries, 9 non-canonical, 0 hits.
+    for (const invented of [
+      "geopolitical energy supply volatility",
+      "bank capital adequacy requirements",
+      "anti-money laundering regulatory compliance",
+    ]) {
+      expect(coerceToCanonical(invented)).toBe("");
+    }
   });
 
-  it("handles empty input without throwing", () => {
+  it("does NOT fuzzy-match on generic shared tokens", () => {
+    // Token-overlap scoring mapped this onto "Semiconductor supply chain",
+    // which would serve semiconductor eggs for an energy catalyst. A miss is
+    // safer than a confident wrong answer.
+    expect(coerceToCanonical("global energy supply chain disruption")).not.toBe("Semiconductor supply chain");
+  });
+
+  it("handles empty/whitespace input without throwing", () => {
     expect(coerceToCanonical("")).toBe("");
+    expect(coerceToCanonical("   ")).toBe("");
   });
 
   it("every canonical theme round-trips to itself (cache-key stability)", () => {
     // This is the credit-saving invariant: identical strings => cache hits.
     for (const theme of CANONICAL_THEMES) {
       expect(coerceToCanonical(theme)).toBe(theme);
+    }
+  });
+});
+
+describe("themeFromId", () => {
+  it("resolves a 1-based index to its canonical theme", () => {
+    expect(themeFromId(1)).toBe(CANONICAL_THEMES[0]);
+    expect(themeFromId(CANONICAL_THEMES.length)).toBe(CANONICAL_THEMES[CANONICAL_THEMES.length - 1]);
+  });
+
+  it("accepts a numeric string (models emit both)", () => {
+    expect(themeFromId("2")).toBe(CANONICAL_THEMES[1]);
+  });
+
+  it("rejects out-of-range, zero, and junk rather than guessing", () => {
+    // 0 is the documented 'nothing fits' signal.
+    expect(themeFromId(0)).toBe("");
+    expect(themeFromId(-1)).toBe("");
+    expect(themeFromId(CANONICAL_THEMES.length + 1)).toBe("");
+    expect(themeFromId(1.5)).toBe("");
+    expect(themeFromId("banana")).toBe("");
+    expect(themeFromId(null)).toBe("");
+    expect(themeFromId(undefined)).toBe("");
+  });
+
+  it("every id round-trips to a canonical theme", () => {
+    for (let i = 1; i <= CANONICAL_THEMES.length; i++) {
+      expect(CANONICAL_THEMES).toContain(themeFromId(i) as any);
+    }
+  });
+});
+
+describe("CANONICAL_THEMES coverage", () => {
+  it("covers the catalyst classes the ingest feeds actually produce", () => {
+    // Added after finding the cache had never hit: the feeds emit classes the
+    // original 16 couldn't hold, so the classifier invented themes forever.
+    const joined = CANONICAL_THEMES.join(" | ").toLowerCase();
+    for (const needed of [
+      "energy supply",
+      "monetary policy",
+      "financial regulation",
+      "trade policy",
+      "labor market",
+    ]) {
+      expect(joined).toContain(needed);
     }
   });
 });

@@ -14,7 +14,13 @@ export const catalysts = sqliteTable(
     contentHash: text("content_hash").notNull().unique(), // dedupe key
     title: text("title").notNull(),
     summary: text("summary").notNull(),
-    theme: text("theme").notNull(), // e.g. "AI infrastructure", "GLP-1 drugs"
+    // The source's own label, e.g. the RSS feed's topic ("energy data"). Useful
+    // for provenance, useless for rollups — it says which FEED produced this,
+    // not what it's about.
+    theme: text("theme").notNull(),
+    // The classifier's CANONICAL_THEMES pick — what the ripple cache is keyed on
+    // and the only theme worth grouping by. Null until a catalyst is classified.
+    canonicalTheme: text("canonical_theme"),
     sourceType: text("source_type").notNull(), // "sec_8k" | "rss" | "market_signal" | "seed" | "manual"
     sourceUrl: text("source_url"),
     strengthScore: real("strength_score").notNull().default(0), // 0-1: how strong is this catalyst
@@ -237,9 +243,21 @@ export type InsertScanRun = z.infer<typeof insertScanRunSchema>;
 
 // ---- Enriched view types (for API responses) ----
 export type GoldenEggWithCatalyst = GoldenEgg & {
-  catalyst: Pick<Catalyst, "id" | "title" | "theme" | "sourceUrl">;
+  catalyst: Pick<Catalyst, "id" | "title" | "theme" | "canonicalTheme" | "sourceUrl">;
   onWatchlist?: boolean;
 };
+
+/**
+ * The theme worth grouping by.
+ *
+ * `catalyst.theme` is the source's own label (an RSS feed's topic, e.g.
+ * "energy data") — it identifies the FEED, not the subject, so rolling up by it
+ * lumps unrelated theses together. Prefer the classifier's canonical pick;
+ * fall back only for catalysts predating that column.
+ */
+export function rollupTheme(c: Pick<Catalyst, "theme" | "canonicalTheme">): string {
+  return c.canonicalTheme?.trim() || c.theme;
+}
 
 // Canonical theme names — the classifier MUST pick one.
 // Keeping this list tight is the primary cache-hit lever.
@@ -285,6 +303,16 @@ export const CANONICAL_THEMES = [
   "Space economy",
   "Water infrastructure",
   "Aging population healthcare",
+  // --- Added 2026-07-16, with evidence ---
+  // The ingest feeds (Fed, EIA, BLS, USTR) produce catalyst classes the original
+  // 16 couldn't hold, so the classifier invented themes, they never repeated,
+  // and the ripple cache hit 0 times in 6 scans (229 credits, none saved).
+  // Each of these maps to real observed output — see ROADMAP.
+  "Energy supply & demand outlook", // "US long-term energy outlook", "global energy demand shift"
+  "Monetary policy & interest rates", // "Federal Reserve monetary policy trajectory"
+  "Financial regulation & compliance", // "AML regulatory compliance", "bank capital adequacy"
+  "Trade policy & tariffs", // USTR feed
+  "Labor market & wages", // BLS feed
 ] as const;
 export type CanonicalTheme = (typeof CANONICAL_THEMES)[number];
 

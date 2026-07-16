@@ -17,7 +17,7 @@ import type { Catalyst, Node as GraphNode, Edge as GraphEdge } from "@shared/sch
 import { fetchQuotes } from "./finance";
 import { getLlm } from "./providers/llm";
 import { env } from "../config";
-import { coerceToCanonical, extractJson, coerceToSector } from "./ripple-utils";
+import { coerceToCanonical, extractJson, coerceToSector, themeFromId } from "./ripple-utils";
 import { log } from "../logger";
 
 const logger = log("ripple");
@@ -68,23 +68,37 @@ export async function classifyCatalysts(catalysts: Catalyst[]): Promise<Classifi
 
 For EACH item below decide:
   keep: true only if this represents a MATERIAL, ripple-generating shift (secular demand, regulation, tech adoption, supply shock). Reject vague news, single-quarter noise, company-specific PR, minor executive changes, personnel changes, dividend declarations, buybacks, share splits, quarterly-only earnings reactions.
-  normalized_theme: pick EXACTLY one theme from the CANONICAL LIST below. If nothing on the list fits, set keep=false. Never invent new theme names \u2014 the cache depends on identical strings.
+  theme_id: the NUMBER of exactly one theme from the CANONICAL LIST below. Do NOT write a theme name, and do NOT invent one \u2014 return the number. If no listed theme genuinely fits, set keep=false and theme_id=0.
   strength: 0-1. How large is the second-order economic ripple?
   rationale: one short sentence.
 
-CANONICAL THEMES (pick one verbatim):
+CANONICAL THEMES (return the NUMBER):
 ${themeList}
 
 Items:
 ${JSON.stringify(items, null, 2)}
 
-Return ONLY a JSON object of shape: { "results": [{ "catalyst_id": N, "keep": bool, "normalized_theme": "...", "strength": 0.x, "rationale": "..." }] }`;
+Return ONLY a JSON object of shape: { "results": [{ "catalyst_id": N, "keep": bool, "theme_id": N, "strength": 0.x, "rationale": "..." }] }`;
 
   try {
     const text = await getLlm().complete(prompt, { tier: "cheap", maxTokens: 2000 });
     const parsed = extractJson(text);
-    const results = (parsed?.results ?? []) as ClassifiedCatalyst[];
-    return results.map((r) => ({ ...r, normalized_theme: coerceToCanonical(r.normalized_theme || "") }));
+    const results = (parsed?.results ?? []) as Array<Record<string, unknown>>;
+    return results.map((r) => {
+      // Prefer the numeric id \u2014 it either indexes the list or it doesn't, so
+      // there's no room for the drift that kept the cache at a 0% hit rate.
+      // Fall back to the string form for older/looser model output.
+      const theme = themeFromId(r.theme_id) || coerceToCanonical(String(r.normalized_theme ?? ""));
+      return {
+        catalyst_id: Number(r.catalyst_id),
+        // No canonical theme => not something we track. Rejecting beats minting
+        // a one-off cache key that can never be hit again.
+        keep: r.keep !== false && theme !== "",
+        normalized_theme: theme,
+        strength: Number.isFinite(r.strength) ? (r.strength as number) : 0.3,
+        rationale: String(r.rationale ?? ""),
+      } satisfies ClassifiedCatalyst;
+    });
   } catch (e) {
     logger.warn({ err: e, count: catalysts.length }, "classifyCatalysts failed — rejecting batch");
     return catalysts.map((c) => ({
@@ -94,6 +108,59 @@ Return ONLY a JSON object of shape: { "results": [{ "catalyst_id": N, "keep": bo
       strength: 0.3,
       rationale: "classifier error",
     }));
+  }
+}
+
+/**
+ * Ask only "which canonical theme is this?", with no keep/reject judgement.
+ *
+ * classifyCatalysts deliberately couples the two \u2014 a rejected catalyst needs no
+ * theme. That coupling is wrong for backfilling existing catalysts: they already
+ * produced eggs, so the question isn't whether to keep them, it's what to file
+ * them under. Asked together, the model zeroes the theme whenever it decides
+ * "not material", and the rollup learns nothing.
+ *
+ * Cheap tier, batched. Returns { catalystId: canonicalTheme } for the ones it
+ * could place.
+ */
+export async function assignCanonicalThemes(catalysts: Catalyst[]): Promise<Record<number, string>> {
+  if (catalysts.length === 0) return {};
+  const items = catalysts.map((c) => ({
+    id: c.id,
+    title: c.title.slice(0, 200),
+    summary: c.summary.slice(0, 250),
+  }));
+  const themeList = CANONICAL_THEMES.map((t, i) => `${i + 1}. ${t}`).join("\n");
+
+  const prompt = `Classify each market catalyst under the single best-fitting theme.
+
+This is a filing exercise, NOT a quality judgement \u2014 do not consider whether the
+catalyst is important, material, or tradable. Only: which theme does it belong to?
+
+THEMES (return the NUMBER):
+${themeList}
+
+For each item return theme_id: the number of the best-fitting theme, or 0 ONLY if
+genuinely none of them relate to the subject matter.
+
+Items:
+${JSON.stringify(items, null, 2)}
+
+Return ONLY JSON: { "results": [{ "catalyst_id": N, "theme_id": N }] }`;
+
+  try {
+    const text = await getLlm().complete(prompt, { tier: "cheap", maxTokens: 1500 });
+    const parsed = extractJson(text);
+    const out: Record<number, string> = {};
+    for (const r of (parsed?.results ?? []) as Array<Record<string, unknown>>) {
+      const theme = themeFromId(r.theme_id);
+      const id = Number(r.catalyst_id);
+      if (theme && Number.isInteger(id)) out[id] = theme;
+    }
+    return out;
+  } catch (e) {
+    logger.warn({ err: e, count: catalysts.length }, "assignCanonicalThemes failed");
+    return {};
   }
 }
 
@@ -327,9 +394,12 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
       seenTickers.add(key);
       eggsToCreate.push({ anchor, egg: e });
     }
-    await storage.markCatalystAnalyzed(anchor.id, isFresh ? 0 : 15);
+    // Record the canonical theme this group was analyzed under. Without it,
+    // rollups fall back to catalysts.theme — which is the source feed's label
+    // ("energy data"), not what the catalyst is actually about.
+    await storage.markCatalystAnalyzed(anchor.id, isFresh ? 0 : 15, group.theme);
     for (const c of group.catalysts.slice(1)) {
-      await storage.markCatalystAnalyzed(c.id, 0);
+      await storage.markCatalystAnalyzed(c.id, 0, group.theme);
     }
   }
 

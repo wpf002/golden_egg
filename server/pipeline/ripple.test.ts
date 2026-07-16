@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Catalyst } from "@shared/schema";
+import { CANONICAL_THEMES } from "@shared/schema";
 
 // Mock the storage module so importing ripple.ts never opens data.db.
 const mocks = vi.hoisted(() => ({
@@ -37,6 +38,7 @@ function catalyst(id: number, theme: string): Catalyst {
     title: `Catalyst ${id}`,
     summary: "summary",
     theme,
+    canonicalTheme: null,
     sourceType: "rss",
     sourceUrl: null,
     strengthScore: 0.5,
@@ -54,6 +56,19 @@ function classifierResponse(ids: number[], themes: string[]) {
       catalyst_id: id,
       keep: true,
       normalized_theme: themes[i],
+      strength: 0.9,
+      rationale: "test",
+    })),
+  });
+}
+
+/** Classifier responding with theme NUMBERS, which is what the prompt now asks for. */
+function classifierIdResponse(pairs: Array<[id: number, themeId: number]>) {
+  return JSON.stringify({
+    results: pairs.map(([catalyst_id, theme_id]) => ({
+      catalyst_id,
+      keep: true,
+      theme_id,
       strength: 0.9,
       rationale: "test",
     })),
@@ -120,6 +135,72 @@ describe("processCatalysts — credit ceiling", () => {
     const stats = await processCatalysts([], 100);
     expect(stats.approxCredits).toBe(0);
     expect(mocks.complete).not.toHaveBeenCalled();
+  });
+});
+
+describe("processCatalysts — canonical themes (the cache-hit invariant)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getCache.mockResolvedValue(undefined);
+  });
+
+  it("accepts a theme_id and caches under the canonical name", async () => {
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap" ? classifierIdResponse([[1, 1]]) : ONE_EGG
+    );
+    await processCatalysts([catalyst(1, "energy data")], 100);
+    expect(mocks.putCache).toHaveBeenCalledTimes(1);
+    // Cached under CANONICAL_THEMES[0], never the feed's own label.
+    const cached = mocks.putCache.mock.calls[0][0] as any;
+    expect(cached.themeSummary).toBe(CANONICAL_THEMES[0]);
+    expect(cached.themeSummary).not.toBe("energy data");
+  });
+
+  it("REGRESSION: two catalysts on the same theme share ONE premium call", async () => {
+    // The whole point of canonicalization. Before the fix the classifier
+    // invented a distinct theme per catalyst, so keys never collided, the cache
+    // hit 0 times in 6 scans, and every catalyst paid for its own analysis.
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap"
+        ? classifierIdResponse([
+            [1, 3],
+            [2, 3],
+          ])
+        : ONE_EGG
+    );
+    const stats = await processCatalysts([catalyst(1, "energy data"), catalyst(2, "energy policy")], 100);
+    expect(stats.themesAnalyzed).toBe(1); // grouped, not 2
+    expect(mocks.putCache).toHaveBeenCalledTimes(1);
+  });
+
+  it("REGRESSION: rejects a catalyst with no canonical theme rather than minting a dead key", async () => {
+    // theme_id 0 is the documented "nothing fits" signal. Previously an
+    // invented theme string passed straight through into a one-off cache key.
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap" ? classifierIdResponse([[1, 0]]) : ONE_EGG
+    );
+    const stats = await processCatalysts([catalyst(1, "monetary policy")], 100);
+    expect(stats.catalystsKept).toBe(0);
+    expect(stats.themesAnalyzed).toBe(0);
+    expect(mocks.putCache).not.toHaveBeenCalled();
+    // and no premium call was spent
+    expect(mocks.complete).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an out-of-range theme_id (a hallucinated index)", async () => {
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap" ? classifierIdResponse([[1, 999]]) : ONE_EGG
+    );
+    const stats = await processCatalysts([catalyst(1, "x")], 100);
+    expect(stats.catalystsKept).toBe(0);
+  });
+
+  it("records the canonical theme on the catalyst so rollups don't use the feed label", async () => {
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap" ? classifierIdResponse([[1, 2]]) : ONE_EGG
+    );
+    await processCatalysts([catalyst(1, "energy data")], 100);
+    expect(mocks.markCatalystAnalyzed).toHaveBeenCalledWith(1, expect.any(Number), CANONICAL_THEMES[1]);
   });
 });
 

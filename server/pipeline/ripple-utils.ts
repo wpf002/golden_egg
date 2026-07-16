@@ -7,23 +7,52 @@
 import { CANONICAL_THEMES, CANONICAL_SECTORS } from "@shared/schema";
 
 /**
- * Map a model-supplied theme onto the canonical list. The ripple cache is keyed
- * on this string, so drift here directly costs credits (a near-miss theme name
- * becomes a cache miss and triggers a fresh premium call).
+ * Map a model-supplied theme onto the canonical list, or return "" if it isn't
+ * one of ours.
+ *
+ * The ripple cache is keyed on this string, so anything that isn't canonical
+ * mints a brand-new key. This used to end with `return raw.slice(0, 60)` — a
+ * passthrough — which meant every invented theme became its own cache entry.
+ * Net effect: the cache hit **0 times across 6 scans** while 229 credits were
+ * spent. Returning "" instead lets callers reject rather than silently
+ * fragment the cache.
+ *
+ * The fuzzy pass deliberately requires ALL of a canonical theme's key tokens.
+ * Looser scoring produces false positives that are worse than a miss — token
+ * overlap alone mapped "global energy supply chain disruption" onto
+ * "Semiconductor supply chain", which would serve semiconductor eggs for an
+ * energy catalyst.
  */
 export function coerceToCanonical(raw: string): string {
-  // exact match wins
-  if ((CANONICAL_THEMES as readonly string[]).includes(raw)) return raw;
-  const lower = raw.toLowerCase();
-  // fuzzy: first canonical whose key tokens all appear
+  const trimmed = raw?.trim();
+  if (!trimmed) return "";
+  // exact match wins (case-insensitive)
+  const exact = (CANONICAL_THEMES as readonly string[]).find(
+    (c) => c.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (exact) return exact;
+  const lower = trimmed.toLowerCase();
+  // fuzzy: first canonical whose key tokens ALL appear
   for (const c of CANONICAL_THEMES) {
     const toks = c
       .toLowerCase()
       .split(/[\s&/]+/)
       .filter((t) => t.length > 3);
-    if (toks.every((t) => lower.includes(t))) return c;
+    if (toks.length > 0 && toks.every((t) => lower.includes(t))) return c;
   }
-  return raw.slice(0, 60); // fallback — pass through short
+  return ""; // not one of ours — the caller must reject, not invent a cache key
+}
+
+/**
+ * Resolve the classifier's 1-based theme number to a canonical theme.
+ *
+ * Asking for an index rather than a string removes the whole drift problem: a
+ * number either indexes the list or it doesn't. Returns "" when out of range.
+ */
+export function themeFromId(id: unknown): string {
+  const n = typeof id === "number" ? id : Number(id);
+  if (!Number.isInteger(n) || n < 1 || n > CANONICAL_THEMES.length) return "";
+  return CANONICAL_THEMES[n - 1];
 }
 
 /**

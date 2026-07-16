@@ -1,0 +1,1 @@
+ALTER TABLE `catalysts` ADD `canonical_theme` text;

@@ -2,7 +2,7 @@ import type { Express } from "express";
 import type { Server } from "node:http";
 import { storage } from "./storage";
 import { runFullScan, ScanInProgressError } from "./pipeline/scan";
-import { insertWatchlistSchema } from "@shared/schema";
+import { insertWatchlistSchema, rollupTheme } from "@shared/schema";
 import { fetchQuotes, fetchDailyCloses, toYmd } from "./pipeline/finance";
 import {
   parseId,
@@ -171,7 +171,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           eggId: e.id,
           ticker: t,
           companyName: e.companyName,
-          theme: e.catalyst.theme,
+          // Canonical pick, not the source feed's label — see rollupTheme.
+          theme: rollupTheme(e.catalyst),
           sector: e.sector ?? null,
           hopDistance: e.hopDistance,
           confidence: e.confidence,

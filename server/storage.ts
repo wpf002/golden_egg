@@ -54,7 +54,10 @@ export interface IStorage {
   getCatalystByHash(hash: string): Promise<Catalyst | undefined>;
   listCatalysts(limit?: number): Promise<Catalyst[]>;
   createCatalyst(c: InsertCatalyst): Promise<Catalyst>;
-  markCatalystAnalyzed(id: number, credits: number): Promise<void>;
+  /** Mark analyzed, recording the canonical theme it was actually analyzed under. */
+  markCatalystAnalyzed(id: number, credits: number, canonicalTheme?: string): Promise<void>;
+  /** Set the canonical theme without touching analysis state (used by the backfill). */
+  setCanonicalTheme(id: number, canonicalTheme: string): Promise<void>;
   touchCatalyst(id: number, ts: number): Promise<void>;
 
   // Nodes
@@ -148,11 +151,18 @@ export class DatabaseStorage implements IStorage {
   async createCatalyst(c: InsertCatalyst) {
     return db.insert(catalysts).values(c).returning().get();
   }
-  async markCatalystAnalyzed(id: number, credits: number) {
+  async markCatalystAnalyzed(id: number, credits: number, canonicalTheme?: string) {
     db.update(catalysts)
-      .set({ rippleAnalyzed: true, rippleCostCredits: credits })
+      .set({
+        rippleAnalyzed: true,
+        rippleCostCredits: credits,
+        ...(canonicalTheme ? { canonicalTheme } : {}),
+      })
       .where(eq(catalysts.id, id))
       .run();
+  }
+  async setCanonicalTheme(id: number, canonicalTheme: string) {
+    db.update(catalysts).set({ canonicalTheme }).where(eq(catalysts.id, id)).run();
   }
   async touchCatalyst(id: number, ts: number) {
     db.update(catalysts).set({ lastSeenAt: ts }).where(eq(catalysts.id, id)).run();
@@ -225,9 +235,10 @@ export class DatabaseStorage implements IStorage {
               id: r.catalyst.id,
               title: r.catalyst.title,
               theme: r.catalyst.theme,
+              canonicalTheme: r.catalyst.canonicalTheme,
               sourceUrl: r.catalyst.sourceUrl,
             }
-          : { id: 0, title: "(missing)", theme: "", sourceUrl: null },
+          : { id: 0, title: "(missing)", theme: "", canonicalTheme: null, sourceUrl: null },
         onWatchlist: r.watchId != null,
       })) as GoldenEggWithCatalyst[];
   }
@@ -306,9 +317,10 @@ export class DatabaseStorage implements IStorage {
               id: r.catalyst.id,
               title: r.catalyst.title,
               theme: r.catalyst.theme,
+              canonicalTheme: r.catalyst.canonicalTheme,
               sourceUrl: r.catalyst.sourceUrl,
             }
-          : { id: 0, title: "(missing)", theme: "", sourceUrl: null },
+          : { id: 0, title: "(missing)", theme: "", canonicalTheme: null, sourceUrl: null },
         onWatchlist: true,
       })) as GoldenEggWithCatalyst[];
   }
