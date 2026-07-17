@@ -22,4 +22,5 @@ data.db.*
 !.env.example
 
 *.log
+logs/
 .DS_Store

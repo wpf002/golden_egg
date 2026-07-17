@@ -19,7 +19,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "scan": "tsx server/scripts/run-scan.ts",
+    "closes": "tsx server/scripts/backfill-closes.ts",
+    "agents:install": "bash ops/install-agents.sh",
+    "agents:uninstall": "bash ops/uninstall-agents.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
