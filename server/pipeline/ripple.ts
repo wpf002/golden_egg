@@ -292,6 +292,8 @@ export type ScanStats = {
   catalystsKept: number;
   /** Triaged out (not material, or no canonical theme). Marked so they aren't reconsidered. */
   catalystsRejected: number;
+  /** Eggs skipped because their ticker didn't resolve a live quote (likely delisted). */
+  tickersUnresolved: number;
   themesAnalyzed: number;
   cacheHits: number;
   eggsCreated: number;
@@ -308,6 +310,7 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
     catalystsProcessed: catalysts.length,
     catalystsKept: 0,
     catalystsRejected: 0,
+    tickersUnresolved: 0,
     themesAnalyzed: 0,
     cacheHits: 0,
     eggsCreated: 0,
@@ -449,6 +452,21 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
   for (const { anchor, egg: e } of eggsToCreate) {
     const tk = e.ticker.trim().toUpperCase();
     const p = priceMap[tk];
+    // Ticker sanity check. The model sometimes recommends names that no longer
+    // trade — real finds from this dataset: DNB (taken private), WNS (acquired),
+    // CEIX (merged away). If the quote batch worked for OTHER tickers but not
+    // this one, it almost certainly doesn't trade, and an egg we can never
+    // price can never be scored — it would just sit in every list as dead
+    // weight. Skipped only when the batch itself succeeded, so a provider
+    // outage (empty priceMap) never wipes a whole scan's eggs.
+    if (Object.keys(priceMap).length > 0 && !(tk in priceMap)) {
+      stats.tickersUnresolved++;
+      logger.warn(
+        { ticker: tk, company: e.company_name },
+        "egg skipped — ticker didn't resolve a quote (likely delisted or wrong)"
+      );
+      continue;
+    }
     const created = await storage.createEgg({
       catalystId: anchor.id,
       ticker: tk,

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { EggDetailSheet } from "@/components/EggDetailSheet";
 import { LoadingSkeleton, ErrorState, EmptyState } from "@/components/QueryState";
 import { AddCatalystDialog } from "@/components/AddCatalystDialog";
+import { Pagination } from "@/components/Pagination";
 
 export default function CatalystsPage() {
   const catalystsQ = useQuery<Catalyst[]>({ queryKey: ["/api/catalysts"] });
@@ -14,6 +15,7 @@ export default function CatalystsPage() {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [openEggId, setOpenEggId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
 
   const filtered = catalysts.filter(
     (c) =>
@@ -21,6 +23,11 @@ export default function CatalystsPage() {
       c.title.toLowerCase().includes(search.toLowerCase()) ||
       c.theme.toLowerCase().includes(search.toLowerCase())
   );
+
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const toggle = (id: number) => {
     const next = new Set(expanded);
@@ -35,7 +42,10 @@ export default function CatalystsPage() {
         <Input
           placeholder="Search catalysts…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           className="max-w-xs"
           data-testid="input-search-catalysts"
         />
@@ -63,7 +73,7 @@ export default function CatalystsPage() {
       )}
 
       <div className="flex flex-col gap-3">
-        {filtered.map((c) => (
+        {visible.map((c) => (
           <CatalystRow
             key={c.id}
             c={c}
@@ -72,12 +82,8 @@ export default function CatalystsPage() {
             onOpenEgg={setOpenEggId}
           />
         ))}
-        {filtered.length === 0 && (
-          <div className="border border-dashed border-border rounded-md py-12 text-center text-sm text-muted-foreground">
-            No catalysts yet. Run a scan from the Overview page.
-          </div>
-        )}
       </div>
+      <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
 
       <EggDetailSheet eggId={openEggId} onClose={() => setOpenEggId(null)} />
     </div>
@@ -115,11 +121,11 @@ function CatalystRow({
               </span>
               {c.rippleAnalyzed ? (
                 <span className="inline-flex items-center gap-1 text-[10px] text-pos">
-                  <CheckCircle2 size={10} /> analyzed
+                  <CheckCircle2 size={10} /> <span className="uppercase tracking-wider">Analyzed</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <Clock size={10} /> pending
+                  <Clock size={10} /> <span className="uppercase tracking-wider">Pending</span>
                 </span>
               )}
             </div>
@@ -138,7 +144,7 @@ function CatalystRow({
             data-testid={`button-toggle-catalyst-${c.id}`}
           >
             {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            View ripple eggs
+            View Golden Eggs
           </button>
           <span>Seen {formatRelative(c.lastSeenAt)}</span>
           {c.sourceUrl && (
@@ -158,10 +164,10 @@ function CatalystRow({
       {open && (
         <div className="border-t border-border/40 bg-background/30 px-4 py-3">
           {isLoading ? (
-            <div className="text-xs text-muted-foreground">Loading eggs…</div>
+            <div className="text-xs text-muted-foreground">Loading golden eggs…</div>
           ) : eggs.length === 0 ? (
             <div className="text-xs text-muted-foreground italic">
-              No eggs flagged from this catalyst yet.
+              No golden eggs from this catalyst yet — the analysis found nothing worth flagging.
             </div>
           ) : (
             <div className="flex flex-col divide-y divide-border/40">
@@ -175,7 +181,7 @@ function CatalystRow({
                   <span className="font-mono text-sm text-primary tabular w-16">{e.ticker}</span>
                   <span className="flex-1 text-sm text-foreground truncate">{e.companyName}</span>
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    hop {e.hopDistance}
+                    Hop {e.hopDistance}
                   </span>
                   <span className="text-[11px] font-mono tabular text-muted-foreground w-12 text-right">
                     {(e.confidence * 100).toFixed(0)}%

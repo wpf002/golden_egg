@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { Logo } from "./Logo";
 import { Sparkles, Zap, Network, Star, Activity, LineChart } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import type { ScanRun, PriceAlert } from "@/lib/types";
+import type { PriceAlert } from "@/lib/types";
 
 const navItems = [
   { href: "/", label: "Overview", icon: Sparkles },
@@ -15,10 +15,6 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const { data: latestScan } = useQuery<ScanRun | null>({
-    queryKey: ["/api/scans/latest"],
-    refetchInterval: 60_000,
-  });
   const { data: alerts } = useQuery<PriceAlert[]>({ queryKey: ["/api/alerts"] });
   const openAlerts = (alerts ?? []).filter((a) => !a.acknowledgedAt).length;
 
@@ -69,25 +65,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="mt-auto px-5 py-4 border-t border-sidebar-border text-[11px] text-muted-foreground tabular">
-          {latestScan ? (
-            <>
-              <div className="uppercase tracking-widest text-[9px] mb-1 text-muted-foreground/70">
-                Last scan
-              </div>
-              <div className="text-foreground">{formatRelative(latestScan.startedAt)}</div>
-              <div className="mt-1">
-                <span className="text-primary">{latestScan.eggsCreated}</span> eggs ·{" "}
-                <span>{latestScan.cacheHits}</span> cached · ~<span>{latestScan.approxCredits}</span> credits
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="uppercase tracking-widest text-[9px] mb-1 text-muted-foreground/70">Status</div>
-              <div>No scan yet</div>
-            </>
-          )}
-        </div>
       </aside>
 
       {/* Header */}
@@ -121,12 +98,12 @@ function pageTitle(loc: string) {
   return "Golden Egg";
 }
 function pageSubtitle(loc: string) {
-  if (loc === "/") return "Trending catalysts and top parallel plays";
-  if (loc.startsWith("/eggs")) return "Non-obvious ripple beneficiaries";
-  if (loc.startsWith("/catalysts")) return "Emerging market drivers";
-  if (loc.startsWith("/graph")) return "Supply-chain ripple network";
-  if (loc.startsWith("/backtest")) return "Score every flagged egg vs. current price";
-  if (loc.startsWith("/watchlist")) return "Tracked positions";
+  if (loc === "/") return "What's moving, and who quietly benefits";
+  if (loc.startsWith("/eggs")) return "The stocks our catalysts point to";
+  if (loc.startsWith("/catalysts")) return "The news and filings we're tracking";
+  if (loc.startsWith("/graph")) return "How catalysts ripple through supply chains";
+  if (loc.startsWith("/backtest")) return "How the picks have actually done";
+  if (loc.startsWith("/watchlist")) return "Stocks you're keeping an eye on";
   return "";
 }
 

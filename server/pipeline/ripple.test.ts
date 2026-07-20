@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   markCatalystAnalyzed: vi.fn(async () => {}),
   deleteCache: vi.fn(async () => {}),
   incrementCacheHit: vi.fn(async () => {}),
+  fetchQuotes: vi.fn(async (): Promise<Record<string, number>> => ({})),
 }));
 
 vi.mock("../storage", () => ({
@@ -27,7 +28,7 @@ vi.mock("../storage", () => ({
 }));
 
 vi.mock("./providers/llm", () => ({ getLlm: () => ({ complete: mocks.complete }) }));
-vi.mock("./finance", () => ({ fetchQuotes: vi.fn(async () => ({})) }));
+vi.mock("./finance", () => ({ fetchQuotes: mocks.fetchQuotes }));
 
 const { processCatalysts } = await import("./ripple");
 
@@ -74,6 +75,33 @@ function classifierIdResponse(pairs: Array<[id: number, themeId: number]>) {
     })),
   });
 }
+
+const TWO_EGGS = JSON.stringify({
+  eggs: [
+    {
+      ticker: "GOOD",
+      company_name: "Good Co",
+      thesis: "t",
+      hop_distance: 2,
+      confidence: 0.8,
+      novelty_score: 0.7,
+      timing_lag: "concurrent",
+      sector: "Industrials",
+      ripple_path: [],
+    },
+    {
+      ticker: "GONE",
+      company_name: "Delisted Co",
+      thesis: "t",
+      hop_distance: 2,
+      confidence: 0.8,
+      novelty_score: 0.7,
+      timing_lag: "concurrent",
+      sector: "Industrials",
+      ripple_path: [],
+    },
+  ],
+});
 
 const ONE_EGG = JSON.stringify({
   eggs: [
@@ -252,6 +280,39 @@ describe("processCatalysts — triage retires rejected catalysts", () => {
     expect(stats.catalystsKept + stats.catalystsRejected).toBe(3);
     // No catalyst is left unmarked to clog the next scan's cap.
     expect(mocks.markCatalystAnalyzed).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("processCatalysts — ticker validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getCache.mockResolvedValue(undefined);
+    mocks.fetchQuotes.mockResolvedValue({});
+  });
+
+  it("REGRESSION: skips an egg whose ticker can't be priced when others could", async () => {
+    // Real finds from this dataset: DNB (taken private), WNS (acquired),
+    // CEIX (merged away). The model recommends them from stale knowledge; an
+    // egg that can never be priced can never be scored.
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap" ? classifierIdResponse([[1, 1]]) : TWO_EGGS
+    );
+    mocks.fetchQuotes.mockResolvedValue({ GOOD: 42 }); // GONE didn't resolve
+    const stats = await processCatalysts([catalyst(1, "x")], 100);
+    expect(stats.eggsCreated).toBe(1);
+    expect(stats.tickersUnresolved).toBe(1);
+    expect(mocks.createEgg).toHaveBeenCalledTimes(1);
+    expect(mocks.createEgg.mock.calls[0][0].ticker).toBe("GOOD");
+  });
+
+  it("does NOT skip anything when the whole quote batch failed (provider outage)", async () => {
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap" ? classifierIdResponse([[1, 1]]) : TWO_EGGS
+    );
+    mocks.fetchQuotes.mockResolvedValue({}); // empty batch = outage, not bad tickers
+    const stats = await processCatalysts([catalyst(1, "x")], 100);
+    expect(stats.eggsCreated).toBe(2);
+    expect(stats.tickersUnresolved).toBe(0);
   });
 });
 

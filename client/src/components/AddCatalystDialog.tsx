@@ -29,16 +29,16 @@ export function AddCatalystDialog() {
     onSuccess: (data) => {
       if (data.status === "rejected") {
         // Not an error — the classifier deliberately declined it.
-        toast({ title: "Not queued", description: data.reason });
+        toast({ title: "Not Queued", description: data.reason });
         return;
       }
       if (data.status === "duplicate") {
-        toast({ title: "Already tracked", description: `"${data.catalyst.title}" is already a catalyst.` });
+        toast({ title: "Already Tracked", description: `"${data.catalyst.title}" is already a catalyst.` });
         setOpen(false);
         return;
       }
       toast({
-        title: "Catalyst queued",
+        title: "Catalyst Queued",
         description: `"${data.catalyst.title}" → ${data.catalyst.theme}. It'll be analyzed on the next scan.`,
       });
       setUrl("");
@@ -47,7 +47,7 @@ export function AddCatalystDialog() {
       qc.invalidateQueries({ queryKey: ["/api/catalysts"] });
     },
     onError: (e: Error) =>
-      toast({ title: "Couldn't add that", description: e.message, variant: "destructive" }),
+      toast({ title: "Couldn't Add That", description: e.message, variant: "destructive" }),
   });
 
   const canSubmit = mode === "url" ? url.trim().length > 0 : text.trim().length > 0;
@@ -56,7 +56,7 @@ export function AddCatalystDialog() {
     return (
       <Button variant="outline" onClick={() => setOpen(true)} data-testid="button-open-add-catalyst">
         <Plus size={14} className="mr-1.5" />
-        Add catalyst
+        Add Catalyst
       </Button>
     );
   }
@@ -77,11 +77,11 @@ export function AddCatalystDialog() {
             className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs ${mode === "text" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
             data-testid="button-mode-text"
           >
-            <FileText size={12} /> Paste text
+            <FileText size={12} /> Paste Text
           </button>
         </div>
         <span className="ml-auto text-[10px] text-muted-foreground">
-          summarized on a cheap model · analyzed on the next scan
+          We'll summarize it now and dig in on the next scan
         </span>
       </div>
 
@@ -94,7 +94,7 @@ export function AddCatalystDialog() {
         />
       ) : (
         <textarea
-          placeholder="Paste the article text (useful when a page is paywalled or JS-rendered)…"
+          placeholder="Paste the article text here — handy when the page is paywalled…"
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={6}
@@ -109,7 +109,7 @@ export function AddCatalystDialog() {
           disabled={!canSubmit || mut.isPending}
           data-testid="button-submit-catalyst"
         >
-          {mut.isPending ? "Summarizing…" : "Queue catalyst"}
+          {mut.isPending ? "Summarizing…" : "Queue Catalyst"}
         </Button>
         <Button variant="ghost" onClick={() => setOpen(false)} data-testid="button-cancel-catalyst">
           Cancel

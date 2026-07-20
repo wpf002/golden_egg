@@ -4,6 +4,7 @@ import { useSearch, useLocation } from "wouter";
 import type { GoldenEggWithCatalyst } from "@/lib/types";
 import { EggCard } from "@/components/EggCard";
 import { EggDetailSheet } from "@/components/EggDetailSheet";
+import { Pagination } from "@/components/Pagination";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -13,6 +14,7 @@ export default function EggsPage() {
   const [minConf, setMinConf] = useState("0.5");
   const [sortBy, setSortBy] = useState("score");
   const [openEggId, setOpenEggId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
 
   // The sector filter lives in the URL (?sector=), not component state: it lets
   // the Overview heatmap deep-link here and makes a filtered view shareable.
@@ -21,8 +23,10 @@ export default function EggsPage() {
   const searchParams = useSearch();
   const [, setLocation] = useLocation();
   const sector = new URLSearchParams(searchParams).get("sector") ?? "all";
-  const setSector = (s: string) =>
+  const setSector = (s: string) => {
+    setPage(1);
     setLocation(s === "all" ? "/eggs" : `/eggs?sector=${encodeURIComponent(s)}`);
+  };
 
   const sectors = useMemo(() => {
     const s = new Set<string>();
@@ -51,13 +55,21 @@ export default function EggsPage() {
     return out;
   }, [eggs, search, sector, minConf, sortBy]);
 
+  const PAGE_SIZE = 12;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
   return (
     <div className="px-8 py-8 max-w-[1400px] mx-auto">
       <div className="mb-6 flex items-center gap-3 flex-wrap">
         <Input
           placeholder="Search ticker, thesis, theme…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           className="max-w-xs"
           data-testid="input-search-eggs"
         />
@@ -68,12 +80,18 @@ export default function EggsPage() {
           <SelectContent>
             {sectors.map((s) => (
               <SelectItem key={s} value={s}>
-                {s === "all" ? "All sectors" : s}
+                {s === "all" ? "All Sectors" : s}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Select value={minConf} onValueChange={setMinConf}>
+        <Select
+          value={minConf}
+          onValueChange={(v) => {
+            setMinConf(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Confidence" />
           </SelectTrigger>
@@ -84,15 +102,21 @@ export default function EggsPage() {
             <SelectItem value="0.85">≥ 85%</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={sortBy} onValueChange={setSortBy}>
+        <Select
+          value={sortBy}
+          onValueChange={(v) => {
+            setSortBy(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Sort" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="score">Best score</SelectItem>
+            <SelectItem value="score">Best Score</SelectItem>
             <SelectItem value="conf">Confidence</SelectItem>
-            <SelectItem value="novelty">Most novel</SelectItem>
-            <SelectItem value="recent">Most recent</SelectItem>
+            <SelectItem value="novelty">Most Novel</SelectItem>
+            <SelectItem value="recent">Most Recent</SelectItem>
           </SelectContent>
         </Select>
         <div className="ml-auto text-xs text-muted-foreground tabular">
@@ -108,14 +132,17 @@ export default function EggsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="border border-dashed border-border rounded-md py-16 text-center text-sm text-muted-foreground">
-          No eggs match your filters.
+          Nothing matches those filters — try loosening them.
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {filtered.map((egg) => (
-            <EggCard key={egg.id} egg={egg} onOpen={setOpenEggId} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            {visible.map((egg) => (
+              <EggCard key={egg.id} egg={egg} onOpen={setOpenEggId} />
+            ))}
+          </div>
+          <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
+        </>
       )}
       <EggDetailSheet eggId={openEggId} onClose={() => setOpenEggId(null)} />
     </div>

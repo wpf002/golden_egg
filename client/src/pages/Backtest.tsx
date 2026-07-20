@@ -16,20 +16,20 @@ export default function BacktestPage() {
       const j: BacktestResult = await res.json();
       setResult(j);
       toast({
-        title: "Backtest complete",
+        title: "Backtest Complete",
         description: `${j.rows.length} rows · ${j.overall ? `${(j.overall.winRate * 100).toFixed(0)}% win rate` : "no returns yet"}`,
       });
     },
-    onError: (e: Error) => toast({ title: "Backtest failed", description: e.message || "Unknown error" }),
+    onError: (e: Error) => toast({ title: "Backtest Failed", description: e.message || "Unknown error" }),
   });
 
   return (
     <div className="px-8 py-8 max-w-[1400px] mx-auto">
       <div className="mb-6 flex items-center gap-3 flex-wrap">
         <div className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
-          Pragmatic backtest: for every flagged egg, we compute return from the first close on or after its
-          flag date through the latest close. Results roll up by theme, sector, and hop distance — one call
-          per unique ticker.
+          Every egg gets scored from the first market close after we flagged it through the most recent close
+          we have. Results roll up by theme, sector, and hop distance. Prices come from our own store of daily
+          closes, so this is instant and free to run.
         </div>
         <Button
           onClick={() => runMut.mutate()}
@@ -38,7 +38,7 @@ export default function BacktestPage() {
           data-testid="button-run-backtest"
         >
           <Play size={14} className={runMut.isPending ? "animate-pulse" : ""} />
-          {runMut.isPending ? "Running…" : "Run backtest"}
+          {runMut.isPending ? "Running…" : "Run Backtest"}
         </Button>
       </div>
 
@@ -47,9 +47,9 @@ export default function BacktestPage() {
           className="mb-6 rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-xs text-muted-foreground"
           data-testid="banner-spot-prices"
         >
-          <span className="font-medium text-primary">Approximate returns.</span> Your quotes provider&rsquo;s
-          plan doesn&rsquo;t include historical daily candles, so the latest refreshed price stands in for the
-          closing price. Point-in-time accuracy needs a candles-capable plan.
+          <span className="font-medium text-primary">Approximate returns.</span> We don&rsquo;t have daily
+          closing prices on hand right now, so these use the most recent quote instead. Run the close backfill
+          to tighten them up.
         </div>
       )}
 
@@ -61,8 +61,8 @@ export default function BacktestPage() {
           <span className="font-medium text-rose-400">
             {result.suspectCount} {result.suspectCount === 1 ? "egg" : "eggs"} excluded.
           </span>{" "}
-          Their recorded flag price looks corrupt (a placeholder left by an early data import), which would
-          otherwise produce five-figure returns and skew every rollup.
+          We left them out of the scoring because the starting price on record looks wrong — keeping them in
+          would throw off every number on this page.
         </div>
       )}
 
@@ -83,13 +83,13 @@ export default function BacktestPage() {
         <div className="border border-dashed border-border rounded-md py-16 text-center text-sm text-muted-foreground">
           <TrendingUp size={24} strokeWidth={1.5} className="mx-auto mb-3 text-muted-foreground/50" />
           <div className="mb-1 text-foreground">Ready to backtest</div>
-          Click "Run backtest" to fetch daily closes and score every egg.
+          Click &ldquo;Run Backtest&rdquo; to score every egg against its price history.
         </div>
       )}
 
       {runMut.isPending && (
         <div className="border border-dashed border-border rounded-md py-16 text-center text-sm text-muted-foreground">
-          Fetching daily closes… this can take 30–90 seconds.
+          Scoring every egg against its price history…
         </div>
       )}
 

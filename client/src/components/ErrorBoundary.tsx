@@ -45,7 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
           data-testid="button-retry-error-boundary"
         >
           <RotateCcw className="h-4 w-4" />
-          Try again
+          Try Again
         </button>
       </div>
     );

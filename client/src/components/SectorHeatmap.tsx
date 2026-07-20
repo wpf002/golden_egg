@@ -92,13 +92,13 @@ export function SectorHeatmap({
             <div className="truncate text-xs font-medium text-foreground">{c.sector}</div>
             <div className="mt-1 flex items-baseline gap-1.5">
               <span className="font-mono text-lg tabular leading-none text-foreground">{c.count}</span>
-              <span className="font-mono text-[10px] tabular text-muted-foreground">
-                {(c.avgConfidence * 100).toFixed(0)}% conf
+              <span className="font-mono text-[10px] uppercase tabular text-muted-foreground">
+                {(c.avgConfidence * 100).toFixed(0)}% Conf
               </span>
             </div>
             {c.topTicker && (
-              <div className="mt-1 font-mono text-[10px] tracking-wider text-muted-foreground/80">
-                top {c.topTicker}
+              <div className="mt-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/80">
+                Top {c.topTicker}
               </div>
             )}
           </button>

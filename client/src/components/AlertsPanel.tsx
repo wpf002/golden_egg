@@ -34,8 +34,8 @@ export function AlertsPanel() {
   if (alerts.length === 0) {
     return (
       <EmptyState
-        message="No price alerts."
-        hint="Refresh prices to check your watchlist against the threshold."
+        message="No price alerts yet."
+        hint="Refresh prices and we'll flag anything on your watchlist that's moved sharply since you flagged it."
       />
     );
   }
@@ -49,7 +49,7 @@ export function AlertsPanel() {
           className="self-end text-xs text-primary hover:underline"
           data-testid="button-ack-all-alerts"
         >
-          Dismiss all ({open.length})
+          Dismiss All ({open.length})
         </button>
       )}
       {alerts.map((a) => {

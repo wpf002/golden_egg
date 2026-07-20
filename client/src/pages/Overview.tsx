@@ -34,16 +34,16 @@ export default function Overview() {
     onSuccess: async (_r) => {
       const data = await _r.json();
       toast({
-        title: "Scan complete",
+        title: "Scan Complete",
         description:
-          `${data.eggsCreated} new eggs, ${data.cacheHits} cache hits, ~${data.approxCredits} credits` +
-          (data.budgetExhausted ? " — credit ceiling hit; remaining themes deferred" : ""),
+          `Found ${data.eggsCreated} new eggs · ${data.cacheHits} answered from cache · ~${data.approxCredits} credits` +
+          (data.budgetExhausted ? " — hit the credit cap, the rest will get picked up next scan" : ""),
       });
       qc.invalidateQueries();
     },
     onError: (e: Error) =>
       toast({
-        title: "Scan failed",
+        title: "Scan Failed",
         // A 409 means a scan is already running — surface that plainly.
         description: e.message.includes("409") ? "A scan is already running." : e.message,
         variant: "destructive",
@@ -65,8 +65,8 @@ export default function Overview() {
             What ripples are worth trading right now?
           </h2>
           <p className="text-sm text-muted-foreground max-w-xl leading-relaxed">
-            Golden Egg watches emerging catalysts and traces them 2–3 hops out to find the non-obvious picks
-            and shovels. Everything you see is a public-market ticker.
+            Golden Egg watches the news for catalysts, then follows each one two or three hops down the supply
+            chain to the companies that quietly benefit. Every name here trades on a US exchange.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -78,7 +78,7 @@ export default function Overview() {
               data-testid="button-export-markdown"
             >
               <Download size={14} className="mr-2" />
-              Export top 20
+              Export Top 20
             </a>
           </Button>
           <Button
@@ -88,7 +88,7 @@ export default function Overview() {
             data-testid="button-run-scan"
           >
             <Play size={14} className="mr-2" />
-            {scanMut.isPending ? "Scanning…" : "Run scan now"}
+            {scanMut.isPending ? "Scanning…" : "Run Scan Now"}
           </Button>
         </div>
       </div>
@@ -146,7 +146,7 @@ export default function Overview() {
                   Where the conviction sits
                 </h3>
                 <span className="text-xs text-muted-foreground/70">
-                  size = egg count · shade = avg confidence
+                  Size = Egg Count · Shade = Avg Confidence
                 </span>
               </div>
               <SectorHeatmap
@@ -161,7 +161,7 @@ export default function Overview() {
             <div className="flex items-baseline justify-between mb-4">
               <h3 className="text-sm uppercase tracking-widest text-muted-foreground">Top parallel plays</h3>
               <Link href="/eggs" className="text-xs text-primary hover:underline">
-                View all →
+                View All →
               </Link>
             </div>
             {topEggs.length === 0 ? (
@@ -180,7 +180,7 @@ export default function Overview() {
             <div className="flex items-baseline justify-between mb-4">
               <h3 className="text-sm uppercase tracking-widest text-muted-foreground">Recent catalysts</h3>
               <Link href="/catalysts" className="text-xs text-primary hover:underline">
-                View all →
+                View All →
               </Link>
             </div>
             <div className="border border-card-border bg-card rounded-md overflow-hidden">
@@ -255,7 +255,11 @@ function StatCard({
       <div className={`text-2xl font-display tabular ${accent === "pos" ? "text-pos" : "text-foreground"}`}>
         {value}
       </div>
-      {sublabel && <div className="text-[11px] text-muted-foreground mt-1 tabular">{sublabel}</div>}
+      {sublabel && (
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1 tabular">
+          {sublabel}
+        </div>
+      )}
     </div>
   );
 }

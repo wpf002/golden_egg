@@ -93,10 +93,10 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
               {badFlagPrice && (
                 <div
                   className="text-[10px] text-muted-foreground/70"
-                  title="The recorded flag price looks corrupt, so return-vs-flag is unreliable for this egg."
+                  title="The starting price we recorded for this stock looks wrong, so the return figure can't be trusted."
                   data-testid={`text-bad-flag-${egg.id}`}
                 >
-                  flag price?
+                  price data issue
                 </div>
               )}
             </div>
@@ -129,7 +129,7 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
           <Clock size={10} /> {egg.timingLag}
         </span>
         <span className="text-muted-foreground inline-flex items-center gap-1">
-          <TrendingUp size={10} /> novelty {(egg.noveltyScore * 100).toFixed(0)}
+          <TrendingUp size={10} /> Novelty {(egg.noveltyScore * 100).toFixed(0)}
         </span>
       </div>
 

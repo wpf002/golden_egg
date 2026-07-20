@@ -123,10 +123,7 @@ export function EggDetailSheet({ eggId, onClose }: { eggId: number | null; onClo
               )}
               {/* The model's finer-grained label, when it says more than the bucket. */}
               {egg.sectorDetail && egg.sectorDetail !== egg.sector && (
-                <span
-                  className="text-muted-foreground/80 normal-case tracking-normal"
-                  data-testid="text-sector-detail"
-                >
+                <span className="text-muted-foreground/80" data-testid="text-sector-detail">
                   {egg.sectorDetail}
                 </span>
               )}
@@ -134,7 +131,7 @@ export function EggDetailSheet({ eggId, onClose }: { eggId: number | null; onClo
                 <Clock size={10} /> {egg.timingLag}
               </span>
               <span className="text-muted-foreground inline-flex items-center gap-1">
-                <TrendingUp size={10} /> novelty {(egg.noveltyScore * 100).toFixed(0)}
+                <TrendingUp size={10} /> Novelty {(egg.noveltyScore * 100).toFixed(0)}
               </span>
               <span className="ml-auto text-muted-foreground">Flagged {formatRelative(egg.createdAt)}</span>
             </div>
@@ -150,7 +147,7 @@ export function EggDetailSheet({ eggId, onClose }: { eggId: number | null; onClo
                 </div>
                 {badFlagPrice && (
                   <div className="mt-1 text-[10px] leading-tight text-muted-foreground/70">
-                    Flag price looks corrupt — return suppressed.
+                    Not shown — the starting price we recorded for this stock looks wrong.
                   </div>
                 )}
               </div>
@@ -218,7 +215,7 @@ export function EggDetailSheet({ eggId, onClose }: { eggId: number | null; onClo
                       className="mt-2 inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
                       data-testid="link-catalyst-source"
                     >
-                      Open source <ExternalLink size={10} />
+                      View Source <ExternalLink size={10} />
                     </a>
                   )}
                 </div>

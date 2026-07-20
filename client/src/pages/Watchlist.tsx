@@ -29,9 +29,7 @@ export default function WatchlistPage() {
           <section className="mb-8">
             <div className="mb-3 flex items-baseline justify-between">
               <h3 className="text-sm uppercase tracking-widest text-muted-foreground">Price alerts</h3>
-              <span className="text-xs text-muted-foreground/70">
-                raised on price refresh · quote data only, no credits
-              </span>
+              <span className="text-xs text-muted-foreground/70">Checked on every price refresh — free</span>
             </div>
             <AlertsPanel />
           </section>
