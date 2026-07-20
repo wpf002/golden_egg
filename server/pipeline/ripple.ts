@@ -18,6 +18,9 @@ import { fetchQuotes } from "./finance";
 import { getLlm } from "./providers/llm";
 import { env } from "../config";
 import { coerceToCanonical, extractJson, coerceToSector, themeFromId } from "./ripple-utils";
+import { groundEggs, applyGrounding } from "./grounding";
+import { namesLookAlike } from "../lib/company-name";
+import { getQuotes } from "./providers/quotes";
 import { log } from "../logger";
 
 const logger = log("ripple");
@@ -178,6 +181,8 @@ export type RippleOutput = {
     timing_lag: "leading" | "concurrent" | "lagging";
     sector: string;
     ripple_path: Array<{ node: string; relation: string }>;
+    /** Set by web grounding: a search-backed check supported this thesis. */
+    verified?: boolean;
   }>;
 };
 
@@ -294,6 +299,10 @@ export type ScanStats = {
   catalystsRejected: number;
   /** Eggs skipped because their ticker didn't resolve a live quote (likely delisted). */
   tickersUnresolved: number;
+  /** Eggs dropped because web grounding found clear evidence against them. */
+  eggsRefuted: number;
+  /** Eggs skipped because the exchange's name for the ticker doesn't match the model's. */
+  nameMismatches: number;
   themesAnalyzed: number;
   cacheHits: number;
   eggsCreated: number;
@@ -304,6 +313,8 @@ export type ScanStats = {
 
 /** Approximate credit cost of one premium ripple analysis. */
 const PREMIUM_CALL_CREDITS = 15;
+/** Approximate credit cost of one web-grounding pass (model + searches). */
+const GROUNDING_CREDITS = 5;
 
 export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infinity): Promise<ScanStats> {
   const stats: ScanStats = {
@@ -311,6 +322,8 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
     catalystsKept: 0,
     catalystsRejected: 0,
     tickersUnresolved: 0,
+    eggsRefuted: 0,
+    nameMismatches: 0,
     themesAnalyzed: 0,
     cacheHits: 0,
     eggsCreated: 0,
@@ -400,6 +413,20 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
       output = await analyzeTheme(group.theme, summary);
       stats.themesAnalyzed++;
       stats.approxCredits += PREMIUM_CALL_CREDITS;
+      // Fact-check BEFORE caching, so cached reuse inherits the verdicts and a
+      // refuted egg never comes back from the cache.
+      if (output.eggs.length > 0) {
+        const verdicts = await groundEggs(group.theme, output.eggs);
+        if (verdicts.length > 0) {
+          const { kept, refuted } = applyGrounding(output.eggs, verdicts);
+          output = { eggs: kept };
+          stats.eggsRefuted += refuted.length;
+          stats.approxCredits += GROUNDING_CREDITS;
+          for (const r of refuted) {
+            logger.warn({ ticker: r.ticker, theme: group.theme }, "egg refuted by web grounding");
+          }
+        }
+      }
       // Only cache non-empty results. An empty output (thin theme, transient
       // model hiccup) would otherwise poison this theme for the full 30-day TTL;
       // leaving it uncached lets a future catalyst on the same theme retry.
@@ -449,6 +476,17 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
     }
   }
 
+  // The exchange's own name for each ticker — catches the model pairing a real
+  // ticker with the wrong company, and lets us store the official name.
+  const officialNames: Record<string, string> = {};
+  const nameProvider = getQuotes();
+  if (nameProvider.companyName) {
+    for (const tk of Object.keys(priceMap)) {
+      const official = await nameProvider.companyName(tk).catch(() => null);
+      if (official) officialNames[tk] = official;
+    }
+  }
+
   for (const { anchor, egg: e } of eggsToCreate) {
     const tk = e.ticker.trim().toUpperCase();
     const p = priceMap[tk];
@@ -467,10 +505,19 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
       );
       continue;
     }
+    const official = officialNames[tk];
+    if (official && !namesLookAlike(e.company_name, official)) {
+      stats.nameMismatches++;
+      logger.warn(
+        { ticker: tk, modelName: e.company_name, exchangeName: official },
+        "egg skipped — ticker belongs to a different company than the model claimed"
+      );
+      continue;
+    }
     const created = await storage.createEgg({
       catalystId: anchor.id,
       ticker: tk,
-      companyName: e.company_name,
+      companyName: official ?? e.company_name,
       thesis: e.thesis,
       hopDistance: e.hop_distance,
       confidence: e.confidence,
@@ -485,6 +532,7 @@ export async function processCatalysts(catalysts: Catalyst[], maxCredits = Infin
       priceAtFlagDate: Number.isFinite(p) ? nowTs : null,
       currentPrice: Number.isFinite(p) ? p : null,
       priceRefreshedAt: Number.isFinite(p) ? nowTs : null,
+      verified: e.verified ?? null,
       createdAt: nowTs,
     });
     // undefined => the (catalystId, ticker) row already existed. Don't report it

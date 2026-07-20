@@ -43,6 +43,13 @@
       "when": 1784237415471,
       "tag": "0005_cool_darwin",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1784580722547,
+      "tag": "0006_foamy_switch",
+      "breakpoints": true
     }
   ]
 }

@@ -28,6 +28,10 @@ export type GoldenEgg = {
   sector: string | null;
   /** The model's original, more specific string, e.g. "Industrials / Cash Logistics". */
   sectorDetail: string | null;
+  /** True when a web-search fact-check supported the thesis and ticker. */
+  verified?: boolean | null;
+  /** Model confidence blended with the theme's realized win rate (server-computed). */
+  calibratedConfidence?: number;
   ripplePath: string | null;
   priceAtFlag: number | null;
   priceAtFlagDate: number | null;

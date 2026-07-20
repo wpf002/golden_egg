@@ -317,6 +317,16 @@ export default function GraphPage() {
                     transform={`translate(${x} ${y})`}
                     style={{ cursor: "pointer" }}
                     onClick={() => setSelectedId(node.id)}
+                    // Keyboard access: tab between nodes, Enter/Space to open the panel.
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`${label}${node.ticker ? ` (${node.ticker})` : ""} — press Enter for details`}
+                    onKeyDown={(ev) => {
+                      if (ev.key === "Enter" || ev.key === " ") {
+                        ev.preventDefault();
+                        setSelectedId(node.id);
+                      }
+                    }}
                     data-testid={`graph-node-${node.slug}`}
                   >
                     <title>{label}</title>

@@ -1,10 +1,74 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import type { BacktestResult, BacktestRollup } from "@/lib/types";
 import { Play, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+type CalibrationRow = {
+  theme: string;
+  n: number;
+  wins: number;
+  winRate: number;
+  avgModelConfidence: number;
+  calibratedExample: number;
+};
+
+/**
+ * The feedback loop, made visible: what the model believes about each theme
+ * next to how that theme's picks have actually done — and the blended number
+ * the app now ranks with.
+ */
+function CalibrationTable() {
+  const calQ = useQuery<CalibrationRow[]>({ queryKey: ["/api/calibration"] });
+  const rows = calQ.data ?? [];
+  if (rows.length === 0) return null;
+  return (
+    <div className="border border-card-border bg-card rounded-md overflow-hidden mb-6">
+      <div className="px-4 py-3 border-b border-border flex items-baseline justify-between">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">
+          Confidence Calibration
+        </span>
+        <span className="text-[11px] text-muted-foreground/70">
+          As themes build a track record, results outweigh the model&rsquo;s self-grade
+        </span>
+      </div>
+      <table className="w-full text-sm">
+        <thead className="bg-secondary/40 text-[10px] uppercase tracking-widest text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 text-left">Theme</th>
+            <th className="px-3 py-2 text-right">Scored Picks</th>
+            <th className="px-3 py-2 text-right">Model Confidence</th>
+            <th className="px-3 py-2 text-right">Real Win Rate</th>
+            <th className="px-3 py-2 text-right">Calibrated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const drop = r.calibratedExample < r.avgModelConfidence - 0.02;
+            const rise = r.calibratedExample > r.avgModelConfidence + 0.02;
+            return (
+              <tr key={r.theme} className="border-b border-border/40">
+                <td className="px-3 py-2 text-foreground">{r.theme}</td>
+                <td className="px-3 py-2 text-right tabular text-muted-foreground">{r.n}</td>
+                <td className="px-3 py-2 text-right font-mono tabular">
+                  {(r.avgModelConfidence * 100).toFixed(0)}%
+                </td>
+                <td className="px-3 py-2 text-right font-mono tabular">{(r.winRate * 100).toFixed(0)}%</td>
+                <td
+                  className={`px-3 py-2 text-right font-mono tabular ${drop ? "text-rose-400" : rise ? "text-emerald-400" : "text-foreground"}`}
+                >
+                  {(r.calibratedExample * 100).toFixed(0)}%
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function BacktestPage() {
   const { toast } = useToast();
@@ -101,6 +165,8 @@ export default function BacktestPage() {
           <div />
         </div>
       )}
+
+      <CalibrationTable />
 
       {result && result.rows.length > 0 && (
         <div className="border border-card-border bg-card rounded-md overflow-hidden">

@@ -95,6 +95,10 @@ export const goldenEggs = sqliteTable(
     timingLag: text("timing_lag").notNull(), // "leading" | "concurrent" | "lagging"
     sector: text("sector"), // coerced to CANONICAL_SECTORS — safe to group by
     sectorDetail: text("sector_detail"), // the model's original, e.g. "Industrials / Cash Logistics"
+    // Set by the web-grounding pass: true = a search-backed check supported the
+    // thesis and ticker. Null = never grounded (pre-dates the feature or
+    // grounding was off). False = grounding ran but couldn't confirm.
+    verified: integer("verified", { mode: "boolean" }),
     ripplePath: text("ripple_path"), // JSON: [{node, relation}, ...] the chain from catalyst to ticker
     priceAtFlag: real("price_at_flag"), // set when we first flag it
     priceAtFlagDate: integer("price_at_flag_date"),

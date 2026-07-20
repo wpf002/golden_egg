@@ -1,0 +1,1 @@
+ALTER TABLE `golden_eggs` ADD `verified` integer;

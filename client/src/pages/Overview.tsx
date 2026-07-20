@@ -11,6 +11,7 @@ import { formatRelative } from "@/components/AppShell";
 import { Link, useLocation } from "wouter";
 import { LoadingSkeleton, ErrorState, EmptyState } from "@/components/QueryState";
 import { SectorHeatmap } from "@/components/SectorHeatmap";
+import { eggScore } from "@/lib/scoring";
 
 export default function Overview() {
   const qc = useQueryClient();
@@ -50,9 +51,9 @@ export default function Overview() {
       }),
   });
 
-  const topEggs = [...eggs]
-    .sort((a, b) => b.confidence * (1 + b.noveltyScore) - a.confidence * (1 + a.noveltyScore))
-    .slice(0, 6);
+  // Ranked for the ships, not the tide — hop-2/3 outrank equal hop-1 picks,
+  // and calibrated confidence sinks themes that keep losing. See lib/scoring.
+  const topEggs = [...eggs].sort((a, b) => eggScore(b) - eggScore(a)).slice(0, 6);
   const totalCredits = scans.reduce((s, r) => s + r.approxCredits, 0);
   const totalCacheHits = scans.reduce((s, r) => s + r.cacheHits, 0);
 

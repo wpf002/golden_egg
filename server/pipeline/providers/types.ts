@@ -31,6 +31,11 @@ export interface QuotesProvider {
   /** Day's top movers. Empty when the plan doesn't include a screener. */
   marketGainers(): Promise<GainerRow[]>;
   /**
+   * The exchange's official name for a ticker, or null when unknown.
+   * Used to catch the model pairing a real ticker with the wrong company.
+   */
+  companyName?(ticker: string): Promise<string | null>;
+  /**
    * Every ticker's close for one day, in ONE request.
    *
    * This is the difference between a viable and an unusable backtest on a

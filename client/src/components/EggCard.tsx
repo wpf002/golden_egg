@@ -122,6 +122,15 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
 
       <div className="flex flex-wrap items-center gap-1.5 mb-3 text-[10px] uppercase tracking-wider">
         <span className="bg-primary-subtle px-1.5 py-0.5 rounded font-medium">{hopBadge}</span>
+        {egg.verified && (
+          <span
+            className="bg-emerald-400/10 text-emerald-400 px-1.5 py-0.5 rounded font-medium"
+            title="A web-search fact-check supported this thesis and ticker."
+            data-testid={`badge-verified-${egg.id}`}
+          >
+            Verified
+          </span>
+        )}
         {egg.sector && (
           <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{egg.sector}</span>
         )}

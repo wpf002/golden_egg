@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   deleteCache: vi.fn(async () => {}),
   incrementCacheHit: vi.fn(async () => {}),
   fetchQuotes: vi.fn(async (): Promise<Record<string, number>> => ({})),
+  groundEggs: vi.fn(async (): Promise<unknown[]> => []),
+  companyName: vi.fn(async (): Promise<string | null> => null),
 }));
 
 vi.mock("../storage", () => ({
@@ -29,6 +31,11 @@ vi.mock("../storage", () => ({
 
 vi.mock("./providers/llm", () => ({ getLlm: () => ({ complete: mocks.complete }) }));
 vi.mock("./finance", () => ({ fetchQuotes: mocks.fetchQuotes }));
+vi.mock("./providers/quotes", () => ({ getQuotes: () => ({ companyName: mocks.companyName }) }));
+vi.mock("./grounding", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./grounding")>()),
+  groundEggs: mocks.groundEggs,
+}));
 
 const { processCatalysts } = await import("./ripple");
 
@@ -313,6 +320,88 @@ describe("processCatalysts — ticker validation", () => {
     const stats = await processCatalysts([catalyst(1, "x")], 100);
     expect(stats.eggsCreated).toBe(2);
     expect(stats.tickersUnresolved).toBe(0);
+  });
+});
+
+describe("processCatalysts — name cross-check", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getCache.mockResolvedValue(undefined);
+    mocks.groundEggs.mockResolvedValue([]);
+    mocks.fetchQuotes.mockResolvedValue({ GOOD: 42 });
+  });
+
+  it("skips an egg when the exchange says the ticker is a different company", async () => {
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap" ? classifierIdResponse([[1, 1]]) : ONE_EGG.replace("TST", "GOOD")
+    );
+    mocks.companyName.mockResolvedValue("Totally Different Enterprises");
+    const stats = await processCatalysts([catalyst(1, "x")], 100);
+    expect(stats.nameMismatches).toBe(1);
+    expect(stats.eggsCreated).toBe(0);
+  });
+
+  it("adopts the exchange's official name when the names agree", async () => {
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap"
+        ? classifierIdResponse([[1, 1]])
+        : JSON.stringify({
+            eggs: [
+              {
+                ticker: "GOOD",
+                company_name: "Good Co",
+                thesis: "t",
+                hop_distance: 2,
+                confidence: 0.8,
+                novelty_score: 0.7,
+                timing_lag: "concurrent",
+                sector: "Industrials",
+                ripple_path: [],
+              },
+            ],
+          })
+    );
+    mocks.companyName.mockResolvedValue("Good Co Incorporated");
+    const stats = await processCatalysts([catalyst(1, "x")], 100);
+    expect(stats.eggsCreated).toBe(1);
+    expect(mocks.createEgg.mock.calls[0][0].companyName).toBe("Good Co Incorporated");
+  });
+});
+
+describe("processCatalysts — web grounding", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getCache.mockResolvedValue(undefined);
+    mocks.fetchQuotes.mockResolvedValue({});
+    mocks.companyName.mockResolvedValue(null);
+  });
+
+  it("drops refuted eggs BEFORE caching, so the cache never resurrects them", async () => {
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap" ? classifierIdResponse([[1, 1]]) : TWO_EGGS
+    );
+    mocks.groundEggs.mockResolvedValue([
+      { ticker: "GOOD", verdict: "supported" },
+      { ticker: "GONE", verdict: "refuted", note: "acquired in 2025" },
+    ]);
+    const stats = await processCatalysts([catalyst(1, "x")], 100);
+    expect(stats.eggsRefuted).toBe(1);
+    expect(stats.eggsCreated).toBe(1);
+    const cached = mocks.putCache.mock.calls[0][0] as any;
+    const cachedEggs = JSON.parse(cached.outputJson).eggs;
+    expect(cachedEggs).toHaveLength(1);
+    expect(cachedEggs[0].ticker).toBe("GOOD");
+    expect(cachedEggs[0].verified).toBe(true);
+  });
+
+  it("proceeds unverified when grounding returns nothing (feature off or failed)", async () => {
+    mocks.complete.mockImplementation(async (_p: string, o: any) =>
+      o?.tier === "cheap" ? classifierIdResponse([[1, 1]]) : TWO_EGGS
+    );
+    mocks.groundEggs.mockResolvedValue([]);
+    const stats = await processCatalysts([catalyst(1, "x")], 100);
+    expect(stats.eggsCreated).toBe(2);
+    expect(stats.eggsRefuted).toBe(0);
   });
 });
 

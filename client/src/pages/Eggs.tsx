@@ -5,6 +5,7 @@ import type { GoldenEggWithCatalyst } from "@/lib/types";
 import { EggCard } from "@/components/EggCard";
 import { EggDetailSheet } from "@/components/EggDetailSheet";
 import { Pagination } from "@/components/Pagination";
+import { eggScore } from "@/lib/scoring";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -47,8 +48,7 @@ export default function EggsPage() {
           e.catalyst.theme.toLowerCase().includes(q)
       );
     }
-    if (sortBy === "score")
-      out.sort((a, b) => b.confidence * (1 + b.noveltyScore) - a.confidence * (1 + a.noveltyScore));
+    if (sortBy === "score") out.sort((a, b) => eggScore(b) - eggScore(a));
     else if (sortBy === "conf") out.sort((a, b) => b.confidence - a.confidence);
     else if (sortBy === "novelty") out.sort((a, b) => b.noveltyScore - a.noveltyScore);
     else if (sortBy === "recent") out.sort((a, b) => b.createdAt - a.createdAt);

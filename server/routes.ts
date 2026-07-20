@@ -18,8 +18,34 @@ import { backfillCloses } from "./pipeline/closes";
 import { mapWithConcurrency } from "./lib/concurrency";
 import { scoreReturn } from "./lib/backtest";
 import { analyzeHopLag, type EggSeries } from "./lib/hop-lag";
+import { computeCalibration, calibrate, type OutcomeRow } from "./lib/calibration";
 import { evaluateAlerts } from "./pipeline/alerts";
 import { env } from "./config";
+
+/**
+ * Realized outcome per egg, from the local close cache. Cheap: one indexed
+ * query for all closes plus in-memory scoring, so routes can call it per
+ * request without a materialized table.
+ */
+async function buildOutcomeRows(): Promise<{ rows: OutcomeRow[]; byEggId: Map<number, string> }> {
+  const eggs = await storage.listEggs({ limit: 500 });
+  const from = toYmd(Date.now() - 180 * 86_400_000);
+  const closesByTicker = await storage.getClosesSince(from);
+  const rows: OutcomeRow[] = [];
+  const byEggId = new Map<number, string>();
+  for (const e of eggs) {
+    const theme = rollupTheme(e.catalyst);
+    byEggId.set(e.id, theme);
+    const { returnPct } = scoreReturn({
+      closes: closesByTicker[e.ticker.toUpperCase()] ?? [],
+      flagDate: toYmd(e.priceAtFlagDate ?? e.createdAt),
+      priceAtFlag: e.priceAtFlag,
+      currentPrice: e.currentPrice,
+    });
+    rows.push({ theme, confidence: e.confidence, returnPct });
+  }
+  return { rows, byEggId };
+}
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   // ---------- Catalysts ----------
@@ -51,7 +77,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const q = eggQuerySchema.safeParse(req.query);
       if (!q.success) return res.status(400).json({ error: zodMessage(q.error) });
       const rows = await storage.listEggs(q.data);
-      res.json(rows);
+      // Blend each egg's model confidence with its theme's realized track
+      // record — see lib/calibration.ts. With no outcome data this is a no-op.
+      const { rows: outcomes } = await buildOutcomeRows();
+      const cal = computeCalibration(outcomes);
+      res.json(
+        rows.map((e) => ({
+          ...e,
+          calibratedConfidence: calibrate(e.confidence, cal.get(rollupTheme(e.catalyst))),
+        }))
+      );
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }
@@ -322,6 +357,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (e instanceof ManualCatalystError) {
         return res.status(e.status).json({ error: e.message });
       }
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // How each theme's picks have ACTUALLY done, and how that reshapes the
+  // model's confidence. The visible half of the feedback loop.
+  app.get("/api/calibration", async (_req, res) => {
+    try {
+      const { rows } = await buildOutcomeRows();
+      const cal = computeCalibration(rows);
+      const out = [...cal.values()]
+        .sort((a, b) => b.n - a.n)
+        .map((c) => ({
+          ...c,
+          calibratedExample: calibrate(c.avgModelConfidence, c),
+        }));
+      res.json(out);
+    } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }
   });

@@ -46,6 +46,13 @@ const schema = z.object({
   CACHE_SWEEP_MINUTES: z.coerce.number().int().positive().default(360),
   /** Alert when a watchlist egg's return-vs-flag moves this far (%), either way. */
   ALERT_THRESHOLD_PCT: z.coerce.number().positive().default(10),
+  /** Fact-check new theses with web search before saving eggs (Anthropic only). */
+  GROUNDING_ENABLED: z
+    .string()
+    .default("true")
+    .transform((v) => v !== "false" && v !== "0"),
+  /** Max web searches per grounded theme. */
+  GROUNDING_MAX_SEARCHES: z.coerce.number().int().positive().max(20).default(6),
   /** Daily-close cache refresh, as a 5-field schedule expression. Empty disables it. */
   CLOSES_SCHEDULE: z.string().default(""),
   /** How many calendar days back the close backfill covers. */

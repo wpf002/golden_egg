@@ -86,6 +86,19 @@ export class FinnhubProvider implements QuotesProvider {
     // No free gainers screener on Finnhub; market-signal ingest simply yields nothing.
     return [];
   }
+
+  async companyName(ticker: string): Promise<string | null> {
+    try {
+      const r = await withRetry(() =>
+        this.get(`/stock/profile2?symbol=${encodeURIComponent(ticker.trim().toUpperCase())}`)
+      );
+      const name = typeof r?.name === "string" ? r.name.trim() : "";
+      return name || null;
+    } catch (e) {
+      logger.warn({ err: e, ticker }, "finnhub profile lookup failed");
+      return null;
+    }
+  }
 }
 
 // ---------------------------------------------------------------
