@@ -204,7 +204,9 @@ export default function Overview() {
                       >
                         {c.title}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground italic">{c.theme}</td>
+                      <td className="px-4 py-3 text-muted-foreground uppercase text-[10px] tracking-wider">
+                        {c.theme}
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground uppercase text-[10px] tracking-wider">
                         {c.sourceType.replace("_", " ")}
                       </td>

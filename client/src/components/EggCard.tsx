@@ -161,7 +161,9 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
         </div>
         <div className="text-xs text-muted-foreground shrink-0 truncate max-w-[160px]">
           <span className="text-muted-foreground/70">from </span>
-          <span className="text-foreground/70 italic">{egg.catalyst.theme}</span>
+          <span className="text-foreground/70 uppercase text-[10px] tracking-wider">
+            {egg.catalyst.theme}
+          </span>
         </div>
       </div>
     </div>

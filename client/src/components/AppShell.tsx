@@ -19,7 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const openAlerts = (alerts ?? []).filter((a) => !a.acknowledgedAt).length;
 
   return (
-    <div className="dark h-full w-full grid grid-cols-[240px_1fr] grid-rows-[auto_1fr] bg-background text-foreground">
+    <div className="h-full w-full grid grid-cols-[240px_1fr] grid-rows-[auto_1fr] bg-background text-foreground">
       {/* Sidebar */}
       <aside
         className="row-span-2 border-r border-sidebar-border bg-sidebar flex flex-col overflow-y-auto"

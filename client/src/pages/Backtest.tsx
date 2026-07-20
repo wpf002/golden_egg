@@ -50,7 +50,7 @@ function CalibrationTable() {
             const rise = r.calibratedExample > r.avgModelConfidence + 0.02;
             return (
               <tr key={r.theme} className="border-b border-border/40">
-                <td className="px-3 py-2 text-foreground">{r.theme}</td>
+                <td className="px-3 py-2 text-foreground uppercase text-[10px] tracking-wider">{r.theme}</td>
                 <td className="px-3 py-2 text-right tabular text-muted-foreground">{r.n}</td>
                 <td className="px-3 py-2 text-right font-mono tabular">
                   {(r.avgModelConfidence * 100).toFixed(0)}%
@@ -200,7 +200,9 @@ export default function BacktestPage() {
                     >
                       <td className="px-3 py-2 font-mono text-primary tabular">{r.ticker}</td>
                       <td className="px-3 py-2 text-foreground truncate max-w-[180px]">{r.companyName}</td>
-                      <td className="px-3 py-2 text-muted-foreground italic">{r.theme}</td>
+                      <td className="px-3 py-2 text-muted-foreground uppercase text-[10px] tracking-wider">
+                        {r.theme}
+                      </td>
                       <td className="px-3 py-2 text-right tabular">{r.hopDistance}</td>
                       <td className="px-3 py-2 text-right text-muted-foreground tabular">{r.flagDate}</td>
                       <td className="px-3 py-2 text-right text-muted-foreground tabular">{r.daysHeld}</td>
