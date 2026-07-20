@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { BacktestResult, BacktestRollup } from "@/lib/types";
 import { Play, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Pagination } from "@/components/Pagination";
 
 type CalibrationRow = {
   theme: string;
@@ -73,12 +74,14 @@ function CalibrationTable() {
 export default function BacktestPage() {
   const { toast } = useToast();
   const [result, setResult] = useState<BacktestResult | null>(null);
+  const [page, setPage] = useState(1);
 
   const runMut = useMutation({
     mutationFn: async () => apiRequest("POST", "/api/backtest/run"),
     onSuccess: async (res) => {
       const j: BacktestResult = await res.json();
       setResult(j);
+      setPage(1);
       toast({
         title: "Backtest Complete",
         description: `${j.rows.length} rows · ${j.overall ? `${(j.overall.winRate * 100).toFixed(0)}% win rate` : "no returns yet"}`,
@@ -171,7 +174,7 @@ export default function BacktestPage() {
       {result && result.rows.length > 0 && (
         <div className="border border-card-border bg-card rounded-md overflow-hidden">
           <div className="px-4 py-3 border-b border-border text-xs uppercase tracking-widest text-muted-foreground">
-            Per-egg returns ({result.rows.length})
+            Per-Egg Returns ({result.rows.length})
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -192,6 +195,7 @@ export default function BacktestPage() {
                 {result.rows
                   .slice()
                   .sort((a, b) => (b.returnPct ?? -Infinity) - (a.returnPct ?? -Infinity))
+                  .slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE)
                   .map((r) => (
                     <tr
                       key={r.eggId}
@@ -232,11 +236,20 @@ export default function BacktestPage() {
               </tbody>
             </table>
           </div>
+          <div className="pb-4">
+            <Pagination
+              page={page}
+              totalPages={Math.max(1, Math.ceil(result.rows.length / ROWS_PER_PAGE))}
+              onPage={setPage}
+            />
+          </div>
         </div>
       )}
     </div>
   );
 }
+
+const ROWS_PER_PAGE = 25;
 
 function RollupTable({ title, rows, keyLabel }: { title: string; rows: BacktestRollup[]; keyLabel: string }) {
   return (
