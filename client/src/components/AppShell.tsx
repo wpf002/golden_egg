@@ -13,16 +13,24 @@ const navItems = [
   { href: "/watchlist", label: "Watchlist", icon: Star },
 ];
 
+/**
+ * Responsive shell: the 240px sidebar exists from lg: up. Below that,
+ * navigation moves to a fixed bottom tab bar (thumb-reachable on phones and
+ * tablets) and the header shows the logo. Main content is the only scroll
+ * region in both layouts.
+ */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { data: alerts } = useQuery<PriceAlert[]>({ queryKey: ["/api/alerts"] });
   const openAlerts = (alerts ?? []).filter((a) => !a.acknowledgedAt).length;
 
+  const isActive = (href: string) => location === href || (href !== "/" && location.startsWith(href));
+
   return (
-    <div className="h-full w-full grid grid-cols-[240px_1fr] grid-rows-[auto_1fr] bg-background text-foreground">
-      {/* Sidebar */}
+    <div className="h-full w-full grid grid-cols-1 lg:grid-cols-[240px_1fr] grid-rows-[auto_1fr] bg-background text-foreground">
+      {/* Sidebar — desktop only */}
       <aside
-        className="row-span-2 border-r border-sidebar-border bg-sidebar flex flex-col overflow-y-auto"
+        className="hidden lg:flex row-span-2 border-r border-sidebar-border bg-sidebar flex-col overflow-y-auto"
         style={{ overscrollBehavior: "contain" }}
       >
         <div className="px-5 py-5 flex items-center gap-2.5 text-primary">
@@ -38,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="px-3 pt-2 pb-4 flex flex-col gap-0.5">
           {navItems.map((item) => {
-            const active = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+            const active = isActive(item.href);
             return (
               <Link
                 key={item.href}
@@ -68,22 +76,61 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Header */}
-      <header className="col-start-2 border-b border-border bg-background/95 backdrop-blur sticky top-0 z-10 px-8 h-14 flex items-center justify-between">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-sm font-medium tracking-tight text-foreground">{pageTitle(location)}</h1>
-          <span className="text-xs text-muted-foreground">{pageSubtitle(location)}</span>
+      <header className="lg:col-start-2 border-b border-border bg-background/95 backdrop-blur sticky top-0 z-10 px-4 md:px-8 h-14 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="lg:hidden text-primary shrink-0">
+            <Logo size={22} />
+          </span>
+          <div className="flex items-baseline gap-3 min-w-0">
+            <h1 className="text-sm font-medium tracking-tight text-foreground whitespace-nowrap">
+              {pageTitle(location)}
+            </h1>
+            <span className="hidden sm:inline text-xs text-muted-foreground truncate">
+              {pageSubtitle(location)}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground tabular">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground tabular shrink-0">
           <span className="inline-flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-pos"></span>Live
           </span>
         </div>
       </header>
 
-      {/* Main scroll region */}
-      <main className="col-start-2 overflow-y-auto" style={{ overscrollBehavior: "contain" }}>
+      {/* Main scroll region — bottom padding clears the mobile tab bar */}
+      <main
+        className="lg:col-start-2 overflow-y-auto pb-20 lg:pb-0"
+        style={{ overscrollBehavior: "contain" }}
+      >
         {children}
       </main>
+
+      {/* Bottom tab bar — phones and tablets */}
+      <nav
+        className="lg:hidden fixed bottom-0 inset-x-0 z-20 border-t border-border bg-background/95 backdrop-blur flex"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        aria-label="Primary"
+      >
+        {navItems.map((item) => {
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`relative flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] tracking-wide transition-colors ${
+                active ? "text-primary" : "text-muted-foreground"
+              }`}
+              data-testid={`tab-${item.label.toLowerCase().replace(" ", "-")}`}
+            >
+              <item.icon size={18} strokeWidth={active ? 2 : 1.75} />
+              <span className="uppercase">{item.label.split(" ").pop()}</span>
+              {item.href === "/watchlist" && openAlerts > 0 && (
+                <span className="absolute top-1 right-[calc(50%-16px)] w-2 h-2 rounded-full bg-primary" />
+              )}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

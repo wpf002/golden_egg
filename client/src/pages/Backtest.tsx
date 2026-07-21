@@ -35,38 +35,42 @@ function CalibrationTable() {
           As themes build a track record, results outweigh the model&rsquo;s self-grade
         </span>
       </div>
-      <table className="w-full text-sm">
-        <thead className="bg-secondary/40 text-[10px] uppercase tracking-widest text-muted-foreground">
-          <tr>
-            <th className="px-3 py-2 text-left">Theme</th>
-            <th className="px-3 py-2 text-right">Scored Picks</th>
-            <th className="px-3 py-2 text-right">Model Confidence</th>
-            <th className="px-3 py-2 text-right">Real Win Rate</th>
-            <th className="px-3 py-2 text-right">Calibrated</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => {
-            const drop = r.calibratedExample < r.avgModelConfidence - 0.02;
-            const rise = r.calibratedExample > r.avgModelConfidence + 0.02;
-            return (
-              <tr key={r.theme} className="border-b border-border/40">
-                <td className="px-3 py-2 text-foreground uppercase text-[10px] tracking-wider">{r.theme}</td>
-                <td className="px-3 py-2 text-right tabular text-muted-foreground">{r.n}</td>
-                <td className="px-3 py-2 text-right font-mono tabular">
-                  {(r.avgModelConfidence * 100).toFixed(0)}%
-                </td>
-                <td className="px-3 py-2 text-right font-mono tabular">{(r.winRate * 100).toFixed(0)}%</td>
-                <td
-                  className={`px-3 py-2 text-right font-mono tabular ${drop ? "text-rose-400" : rise ? "text-emerald-400" : "text-foreground"}`}
-                >
-                  {(r.calibratedExample * 100).toFixed(0)}%
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
+          <thead className="bg-secondary/40 text-[10px] uppercase tracking-widest text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">Theme</th>
+              <th className="px-3 py-2 text-right">Scored Picks</th>
+              <th className="px-3 py-2 text-right">Model Confidence</th>
+              <th className="px-3 py-2 text-right">Real Win Rate</th>
+              <th className="px-3 py-2 text-right">Calibrated</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const drop = r.calibratedExample < r.avgModelConfidence - 0.02;
+              const rise = r.calibratedExample > r.avgModelConfidence + 0.02;
+              return (
+                <tr key={r.theme} className="border-b border-border/40">
+                  <td className="px-3 py-2 text-foreground uppercase text-[10px] tracking-wider">
+                    {r.theme}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular text-muted-foreground">{r.n}</td>
+                  <td className="px-3 py-2 text-right font-mono tabular">
+                    {(r.avgModelConfidence * 100).toFixed(0)}%
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular">{(r.winRate * 100).toFixed(0)}%</td>
+                  <td
+                    className={`px-3 py-2 text-right font-mono tabular ${drop ? "text-rose-400" : rise ? "text-emerald-400" : "text-foreground"}`}
+                  >
+                    {(r.calibratedExample * 100).toFixed(0)}%
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -91,7 +95,7 @@ export default function BacktestPage() {
   });
 
   return (
-    <div className="px-8 py-8 max-w-[1400px] mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-[1400px] mx-auto">
       <div className="mb-6 flex items-center gap-3 flex-wrap">
         <div className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
           Every egg gets scored from the first market close after we flagged it through the most recent close
@@ -134,7 +138,7 @@ export default function BacktestPage() {
       )}
 
       {result?.overall && (
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <StatCard label="Rows scored" value={String(result.overall.count)} />
           <StatCard label="Wins" value={String(result.overall.wins)} />
           <StatCard label="Win rate" value={`${(result.overall.winRate * 100).toFixed(1)}%`} accent="pos" />
@@ -161,7 +165,7 @@ export default function BacktestPage() {
       )}
 
       {result && (
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
           <RollupTable title="By theme" rows={result.byTheme} keyLabel="Theme" />
           <RollupTable title="By sector" rows={result.bySector} keyLabel="Sector" />
           <RollupTable title="By hop distance" rows={result.byHop} keyLabel="Hop" />

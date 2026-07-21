@@ -58,9 +58,9 @@ export default function Overview() {
   const totalCacheHits = scans.reduce((s, r) => s + r.cacheHits, 0);
 
   return (
-    <div className="px-8 py-8 max-w-[1400px] mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-[1400px] mx-auto">
       {/* Hero row */}
-      <div className="flex items-start justify-between mb-8 gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-8 gap-4 sm:gap-6">
         <div>
           <h2 className="font-display text-2xl font-medium tracking-tight text-foreground mb-2">
             Here&rsquo;s what&rsquo;s worth a look right now
@@ -126,7 +126,7 @@ export default function Overview() {
       {!error && !isLoading && (
         <>
           {/* Stats grid */}
-          <div className="grid grid-cols-4 gap-4 mb-10">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-10">
             <StatCard
               label="Golden Eggs"
               value={eggs.length}
@@ -183,7 +183,7 @@ export default function Overview() {
             {topEggs.length === 0 ? (
               <EmptyState message="Run your first scan to see parallel-market opportunities." />
             ) : (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 {topEggs.map((egg) => (
                   <EggCard key={egg.id} egg={egg} onOpen={setOpenEggId} />
                 ))}
@@ -200,48 +200,50 @@ export default function Overview() {
               </Link>
             </div>
             <div className="border border-card-border bg-card rounded-md overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
-                  <tr>
-                    <th className="text-left px-4 py-2.5 font-medium">Catalyst</th>
-                    <th className="text-left px-4 py-2.5 font-medium">Theme</th>
-                    <th className="text-left px-4 py-2.5 font-medium">Source</th>
-                    <th className="text-right px-4 py-2.5 font-medium">Strength</th>
-                    <th className="text-right px-4 py-2.5 font-medium">Seen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {catalysts.slice(0, 10).map((c) => (
-                    <tr key={c.id} className="border-b border-border/40 hover-elevate">
-                      <td
-                        className="px-4 py-3 max-w-md truncate text-foreground"
-                        data-testid={`text-catalyst-${c.id}`}
-                      >
-                        {c.title}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground uppercase text-[10px] tracking-wider">
-                        {c.theme}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground uppercase text-[10px] tracking-wider">
-                        {c.sourceType.replace("_", " ")}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular text-primary font-mono">
-                        {(c.strengthScore * 100).toFixed(0)}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular text-muted-foreground text-xs">
-                        {formatRelative(c.lastSeenAt)}
-                      </td>
-                    </tr>
-                  ))}
-                  {catalysts.length === 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[640px]">
+                  <thead className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                        No catalysts yet.
-                      </td>
+                      <th className="text-left px-4 py-2.5 font-medium">Catalyst</th>
+                      <th className="text-left px-4 py-2.5 font-medium">Theme</th>
+                      <th className="text-left px-4 py-2.5 font-medium">Source</th>
+                      <th className="text-right px-4 py-2.5 font-medium">Strength</th>
+                      <th className="text-right px-4 py-2.5 font-medium">Seen</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {catalysts.slice(0, 10).map((c) => (
+                      <tr key={c.id} className="border-b border-border/40 hover-elevate">
+                        <td
+                          className="px-4 py-3 max-w-md truncate text-foreground"
+                          data-testid={`text-catalyst-${c.id}`}
+                        >
+                          {c.title}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground uppercase text-[10px] tracking-wider">
+                          {c.theme}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground uppercase text-[10px] tracking-wider">
+                          {c.sourceType.replace("_", " ")}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular text-primary font-mono">
+                          {(c.strengthScore * 100).toFixed(0)}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular text-muted-foreground text-xs">
+                          {formatRelative(c.lastSeenAt)}
+                        </td>
+                      </tr>
+                    ))}
+                    {catalysts.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                          No catalysts yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </section>
         </>

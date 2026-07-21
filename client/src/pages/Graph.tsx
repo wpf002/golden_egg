@@ -157,25 +157,25 @@ export default function GraphPage() {
 
   if (graphQ.error) {
     return (
-      <div className="px-8 py-8 max-w-[1400px] mx-auto">
+      <div className="px-4 py-6 md:px-8 md:py-8 max-w-[1400px] mx-auto">
         <ErrorState error={graphQ.error} label="Couldn't load the graph" onRetry={() => graphQ.refetch()} />
       </div>
     );
   }
   if (graphQ.isLoading) {
     return (
-      <div className="px-8 py-8 max-w-[1400px] mx-auto">
+      <div className="px-4 py-6 md:px-8 md:py-8 max-w-[1400px] mx-auto">
         <LoadingSkeleton rows={5} />
       </div>
     );
   }
 
   return (
-    <div className="px-8 py-8 max-w-[1400px] mx-auto">
-      <div className="grid grid-cols-[270px_1fr] gap-6">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-[1400px] mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-4 lg:gap-6">
         {/* Left rail */}
         <aside
-          className="border border-card-border bg-card rounded-md p-4 max-h-[74vh] overflow-y-auto"
+          className="border border-card-border bg-card rounded-md p-4 max-h-[30vh] lg:max-h-[74vh] overflow-y-auto"
           style={{ overscrollBehavior: "contain" }}
         >
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-3">Catalysts</div>
@@ -219,7 +219,7 @@ export default function GraphPage() {
         </aside>
 
         {/* Canvas */}
-        <div className="relative border border-card-border bg-card rounded-md overflow-hidden min-h-[74vh]">
+        <div className="relative border border-card-border bg-card rounded-md overflow-hidden min-h-[60vh] lg:min-h-[74vh]">
           {/* View controls */}
           <div className="absolute left-3 top-3 z-10 flex items-center gap-2">
             {history.length > 0 && (
@@ -380,7 +380,7 @@ export default function GraphPage() {
           {/* Detail panel */}
           {selectedNode && (
             <div
-              className="absolute right-3 top-3 z-10 w-72 rounded-md border border-card-border bg-background/95 backdrop-blur p-4 shadow-lg"
+              className="absolute right-3 top-3 z-10 w-72 max-w-[calc(100%-1.5rem)] rounded-md border border-card-border bg-background/95 backdrop-blur p-4 shadow-lg"
               data-testid="graph-node-panel"
             >
               <div className="flex items-start justify-between gap-2 mb-2">

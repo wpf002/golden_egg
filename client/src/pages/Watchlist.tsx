@@ -12,9 +12,9 @@ export default function WatchlistPage() {
   const [openEggId, setOpenEggId] = useState<number | null>(null);
 
   return (
-    <div className="px-8 py-8 max-w-[1400px] mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-[1400px] mx-auto">
       {isLoading ? (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="h-40 border border-card-border rounded-md bg-card animate-pulse" />
           ))}
@@ -37,7 +37,7 @@ export default function WatchlistPage() {
           <div className="mb-6 text-xs text-muted-foreground tabular">
             Tracking {watchlist.length} {watchlist.length === 1 ? "position" : "positions"}
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {watchlist.map((e) => (
               <EggCard key={e.id} egg={e} onOpen={setOpenEggId} />
             ))}

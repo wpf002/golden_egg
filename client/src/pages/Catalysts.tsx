@@ -38,9 +38,9 @@ export default function CatalystsPage() {
   };
 
   return (
-    <div className="px-8 py-8 max-w-[1200px] mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-[1200px] mx-auto">
       <ThemeProposals />
-      <div className="mb-6 flex items-center gap-3">
+      <div className="mb-6 flex items-center gap-3 flex-wrap">
         <Input
           placeholder="Search catalysts…"
           value={search}

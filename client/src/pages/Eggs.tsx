@@ -61,7 +61,7 @@ export default function EggsPage() {
   const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
-    <div className="px-8 py-8 max-w-[1400px] mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-[1400px] mx-auto">
       <div className="mb-6 flex items-center gap-3 flex-wrap">
         <Input
           placeholder="Search ticker, thesis, theme…"
@@ -125,7 +125,7 @@ export default function EggsPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-40 border border-card-border rounded-md bg-card animate-pulse" />
           ))}
@@ -136,7 +136,7 @@ export default function EggsPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {visible.map((egg) => (
               <EggCard key={egg.id} egg={egg} onOpen={setOpenEggId} />
             ))}
