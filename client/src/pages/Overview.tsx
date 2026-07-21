@@ -63,7 +63,7 @@ export default function Overview() {
       <div className="flex items-start justify-between mb-8 gap-6">
         <div>
           <h2 className="font-display text-2xl font-medium tracking-tight text-foreground mb-2">
-            What ripples are worth trading right now?
+            The news is the tide. These are the ships.
           </h2>
           <p className="text-sm text-muted-foreground max-w-xl leading-relaxed">
             Golden Egg watches the news for catalysts, then follows each one two or three hops down the supply
