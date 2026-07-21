@@ -16,6 +16,10 @@ import { startScheduledTasks, stopScheduledTasks } from "./scheduler";
 validateProviders();
 
 const app = express();
+// One reverse proxy (Railway/most PaaS) sits in front in production. Without
+// this, express-rate-limit rejects the X-Forwarded-For header and every
+// client shares the proxy's IP for rate-limiting purposes.
+app.set("trust proxy", 1);
 const httpServer = createServer(app);
 
 declare module "http" {
