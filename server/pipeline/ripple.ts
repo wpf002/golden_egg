@@ -258,7 +258,7 @@ async function filteredGraphForTheme(theme: string): Promise<string> {
 export async function analyzeTheme(theme: string, themeSummary: string): Promise<RippleOutput> {
   const graphContext = await filteredGraphForTheme(theme);
 
-  const prompt = `You are a supply-chain equity analyst focused on PARALLEL and ANCILLARY beneficiaries \u2014 the picks-and-shovels 2nd- and 3rd-order plays that most investors miss.
+  const prompt = `You are a supply-chain equity analyst focused on PARALLEL and ANCILLARY beneficiaries \u2014 the picks-and-shovels second- and third-tier plays that most investors miss.
 
 CATALYST THEME: ${theme}
 SUMMARY: ${themeSummary}
@@ -268,8 +268,9 @@ ${graphContext}
 
 TASK:
 Identify 4\u20138 PUBLICLY-TRADED US-listed tickers (equities, ADRs, or ETFs) that would benefit from this catalyst. For each:
-  - Skip the OBVIOUS direct plays (e.g. for AI, skip NVDA \u2014 everyone owns it). Prioritize NON-OBVIOUS 2nd/3rd-order beneficiaries.
-  - hop_distance: 1 = direct supplier, 2 = supplier's supplier, 3 = 3rd-order
+  - Skip the OBVIOUS direct plays (e.g. for AI, skip NVDA \u2014 everyone owns it). Prioritize NON-OBVIOUS second- and third-tier beneficiaries.
+  - hop_distance: 1 = first tier (direct supplier), 2 = second tier (supplier's supplier), 3 = third tier
+  - thesis: 1-2 sentences, written like a person. When you mention supply-chain depth, say "second-tier" or "third-tier" \u2014 never "2nd-order"/"3rd-order" and no other jargon.
   - confidence: 0-1. Downgrade if the link is speculative or the ticker is illiquid/thinly-followed
   - novelty_score: 0-1. Higher = less obvious/less crowded (0.7+ preferred)
   - timing_lag: leading = benefits before mainstream notices; concurrent = benefits in current cycle; lagging = benefits later
