@@ -26,6 +26,7 @@ vi.mock("../storage", () => ({
     markCatalystAnalyzed: mocks.markCatalystAnalyzed,
     deleteCache: mocks.deleteCache,
     incrementCacheHit: mocks.incrementCacheHit,
+    listCustomThemes: vi.fn(async () => []),
   },
 }));
 

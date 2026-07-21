@@ -8,6 +8,15 @@
 
 export type GainerRow = { symbol: string; name: string; changePct: string };
 
+export type NewsItem = {
+  id: string;
+  headline: string;
+  summary: string;
+  url: string | null;
+  /** unix ms */
+  datetime: number;
+};
+
 /**
  * Thrown when a model hit its token cap mid-response.
  *
@@ -35,6 +44,11 @@ export interface QuotesProvider {
    * Used to catch the model pairing a real ticker with the wrong company.
    */
   companyName?(ticker: string): Promise<string | null>;
+  /**
+   * Recent market-news headlines for a category (e.g. "merger"). Empty when
+   * the provider has no news endpoint. Feeds catalyst ingestion.
+   */
+  marketNews?(category: string): Promise<NewsItem[]>;
   /**
    * Every ticker's close for one day, in ONE request.
    *

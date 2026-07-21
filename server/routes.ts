@@ -367,6 +367,34 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // How each theme's picks have ACTUALLY done, and how that reshapes the
   // model's confidence. The visible half of the feedback loop.
+  // ---------- Theme proposals (the scout's output) ----------
+  app.get("/api/themes/proposals", async (_req, res) => {
+    try {
+      const rows = await storage.listThemeProposals(25);
+      res.json(rows.map((p) => ({ ...p, evidence: JSON.parse(p.evidence) as string[] })));
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  app.post("/api/themes/proposals/:id/decide", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const approve = req.body?.approve === true;
+      const proposal = await storage.getThemeProposal(id);
+      if (!proposal) return res.status(404).json({ error: "proposal not found" });
+      if (proposal.status !== "pending") {
+        return res.status(409).json({ error: `already ${proposal.status}` });
+      }
+      const now = Date.now();
+      await storage.decideThemeProposal(id, approve ? "approved" : "dismissed", now);
+      if (approve) await storage.addCustomTheme(proposal.name, now);
+      res.json({ ok: true, status: approve ? "approved" : "dismissed" });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
   app.get("/api/calibration", async (_req, res) => {
     try {
       const { rows } = await buildOutcomeRows();

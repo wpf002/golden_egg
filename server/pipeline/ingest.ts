@@ -198,6 +198,57 @@ export async function ingestMarketSignals(): Promise<CatalystCandidate[]> {
 }
 
 // ---------------------------------------------------------------
+// Financial news — earnings, M&A, deals (via the quotes provider's news API)
+// ---------------------------------------------------------------
+// The policy/regulatory feeds miss catalysts that first surface in deal
+// announcements and earnings guidance. Finnhub's "merger" category is already
+// targeted; "general" is a firehose, so it only passes a strict keyword gate.
+const FINANCIAL_SIGNAL =
+  /\b(acquir\w*|merger|takeover|buyout|divest\w*|spin[- ]?off|raises? (?:full[- ]year )?guidance|cuts? guidance|multi[- ]?year contract|contract award\w*|awarded a? ?\$|capacity expansion|expands? (?:production|capacity|plant)|invest(?:s|ing|ment)? (?:of )?\$?\d+(?:\.\d+)? ?billion)\b/i;
+
+export function newsToCandidate(
+  n: { id: string; headline: string; summary: string; url: string | null; datetime: number },
+  category: string
+): CatalystCandidate | null {
+  const combined = `${n.headline} ${n.summary}`;
+  if (isNoise(combined)) return null;
+  if (category !== "merger" && !FINANCIAL_SIGNAL.test(combined)) return null;
+  return {
+    contentHash: hash(`news:${n.id}`),
+    title: n.headline.slice(0, 200),
+    summary: (n.summary || n.headline).slice(0, 400),
+    theme: category === "merger" ? "M&A activity" : "financial news",
+    sourceType: "financial_news",
+    sourceUrl: n.url,
+    strengthScore: 0.4,
+    firstSeenAt: n.datetime || nowMs(),
+    lastSeenAt: nowMs(),
+  };
+}
+
+export async function ingestFinancialNews(): Promise<CatalystCandidate[]> {
+  const provider = getQuotes();
+  if (!provider.marketNews) return [];
+  const out: CatalystCandidate[] = [];
+  for (const category of ["merger", "general"]) {
+    try {
+      const items = await provider.marketNews(category);
+      let kept = 0;
+      for (const n of items) {
+        if (kept >= 8) break; // cap per category — the classifier bounds cost, but don't flood it
+        const cand = newsToCandidate(n, category);
+        if (!cand) continue;
+        out.push(cand);
+        kept++;
+      }
+    } catch (e) {
+      logger.warn({ err: e, category }, "financial news ingest failed");
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------
 // RSS parser
 // ---------------------------------------------------------------
 function parseRssItems(xml: string): { title: string; link: string; description: string }[] {

@@ -21,7 +21,7 @@ export const catalysts = sqliteTable(
     // The classifier's CANONICAL_THEMES pick — what the ripple cache is keyed on
     // and the only theme worth grouping by. Null until a catalyst is classified.
     canonicalTheme: text("canonical_theme"),
-    sourceType: text("source_type").notNull(), // "sec_8k" | "rss" | "market_signal" | "seed" | "manual"
+    sourceType: text("source_type").notNull(), // "sec_8k" | "rss" | "market_signal" | "financial_news" | "seed" | "manual"
     sourceUrl: text("source_url"),
     strengthScore: real("strength_score").notNull().default(0), // 0-1: how strong is this catalyst
     firstSeenAt: integer("first_seen_at").notNull(), // unix ms
@@ -210,8 +210,34 @@ export const scanRuns = sqliteTable("scan_runs", {
   errorMessage: text("error_message"),
 });
 
+/**
+ * THEME PROPOSALS + CUSTOM THEMES — the theme scout's output and its result.
+ *
+ * The classifier only files catalysts under a fixed theme vocabulary, so a
+ * genuinely new tide would be rejected forever. The scout clusters recent
+ * unplaceable rejects into candidate themes; the user approves or dismisses
+ * each. Approved names land in custom_themes and join the classifier's list.
+ */
+export const themeProposals = sqliteTable("theme_proposals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  rationale: text("rationale").notNull(),
+  evidence: text("evidence").notNull(), // JSON array of example catalyst titles
+  status: text("status").notNull().default("pending"), // "pending" | "approved" | "dismissed"
+  createdAt: integer("created_at").notNull(),
+  decidedAt: integer("decided_at"),
+});
+
+export const customThemes = sqliteTable("custom_themes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  createdAt: integer("created_at").notNull(),
+});
+
 // ---- Insert schemas ----
 export const insertCatalystSchema = createInsertSchema(catalysts).omit({ id: true });
+export const insertThemeProposalSchema = createInsertSchema(themeProposals).omit({ id: true });
+export const insertCustomThemeSchema = createInsertSchema(customThemes).omit({ id: true });
 export const insertNodeSchema = createInsertSchema(nodes).omit({ id: true });
 export const insertEdgeSchema = createInsertSchema(edges).omit({ id: true });
 export const insertGoldenEggSchema = createInsertSchema(goldenEggs).omit({ id: true });
@@ -224,6 +250,10 @@ export const insertScanRunSchema = createInsertSchema(scanRuns).omit({ id: true 
 // ---- Types ----
 export type Catalyst = typeof catalysts.$inferSelect;
 export type InsertCatalyst = z.infer<typeof insertCatalystSchema>;
+export type ThemeProposal = typeof themeProposals.$inferSelect;
+export type InsertThemeProposal = z.infer<typeof insertThemeProposalSchema>;
+export type CustomTheme = typeof customThemes.$inferSelect;
+export type InsertCustomTheme = z.infer<typeof insertCustomThemeSchema>;
 export type Node = typeof nodes.$inferSelect;
 export type InsertNode = z.infer<typeof insertNodeSchema>;
 export type Edge = typeof edges.$inferSelect;

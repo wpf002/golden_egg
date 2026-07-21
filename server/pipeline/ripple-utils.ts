@@ -23,17 +23,15 @@ import { CANONICAL_THEMES, CANONICAL_SECTORS } from "@shared/schema";
  * "Semiconductor supply chain", which would serve semiconductor eggs for an
  * energy catalyst.
  */
-export function coerceToCanonical(raw: string): string {
+export function coerceToCanonical(raw: string, themes: readonly string[] = CANONICAL_THEMES): string {
   const trimmed = raw?.trim();
   if (!trimmed) return "";
   // exact match wins (case-insensitive)
-  const exact = (CANONICAL_THEMES as readonly string[]).find(
-    (c) => c.toLowerCase() === trimmed.toLowerCase()
-  );
+  const exact = themes.find((c) => c.toLowerCase() === trimmed.toLowerCase());
   if (exact) return exact;
   const lower = trimmed.toLowerCase();
   // fuzzy: first canonical whose key tokens ALL appear
-  for (const c of CANONICAL_THEMES) {
+  for (const c of themes) {
     const toks = c
       .toLowerCase()
       .split(/[\s&/]+/)
@@ -48,11 +46,13 @@ export function coerceToCanonical(raw: string): string {
  *
  * Asking for an index rather than a string removes the whole drift problem: a
  * number either indexes the list or it doesn't. Returns "" when out of range.
+ * `themes` defaults to the compiled canonical list; callers that support
+ * user-approved custom themes pass the combined list.
  */
-export function themeFromId(id: unknown): string {
+export function themeFromId(id: unknown, themes: readonly string[] = CANONICAL_THEMES): string {
   const n = typeof id === "number" ? id : Number(id);
-  if (!Number.isInteger(n) || n < 1 || n > CANONICAL_THEMES.length) return "";
-  return CANONICAL_THEMES[n - 1];
+  if (!Number.isInteger(n) || n < 1 || n > themes.length) return "";
+  return themes[n - 1];
 }
 
 /**

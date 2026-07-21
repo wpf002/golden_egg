@@ -8,6 +8,7 @@ import { EggDetailSheet } from "@/components/EggDetailSheet";
 import { LoadingSkeleton, ErrorState, EmptyState } from "@/components/QueryState";
 import { AddCatalystDialog } from "@/components/AddCatalystDialog";
 import { Pagination } from "@/components/Pagination";
+import { ThemeProposals } from "@/components/ThemeProposals";
 
 export default function CatalystsPage() {
   const catalystsQ = useQuery<Catalyst[]>({ queryKey: ["/api/catalysts"] });
@@ -38,6 +39,7 @@ export default function CatalystsPage() {
 
   return (
     <div className="px-8 py-8 max-w-[1200px] mx-auto">
+      <ThemeProposals />
       <div className="mb-6 flex items-center gap-3">
         <Input
           placeholder="Search catalysts…"

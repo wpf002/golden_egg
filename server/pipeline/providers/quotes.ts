@@ -11,7 +11,7 @@
  */
 import { env, candlesProvider } from "../../config";
 import { log } from "../../logger";
-import { type QuotesProvider, type GainerRow, withRetry } from "./types";
+import { type QuotesProvider, type GainerRow, type NewsItem, withRetry } from "./types";
 import { PolygonProvider } from "./polygon";
 
 export type { QuotesProvider, GainerRow } from "./types";
@@ -97,6 +97,26 @@ export class FinnhubProvider implements QuotesProvider {
     } catch (e) {
       logger.warn({ err: e, ticker }, "finnhub profile lookup failed");
       return null;
+    }
+  }
+
+  async marketNews(category: string): Promise<NewsItem[]> {
+    try {
+      const rows = await withRetry(() => this.get(`/news?category=${encodeURIComponent(category)}`));
+      if (!Array.isArray(rows)) return [];
+      return rows
+        .map((r: any): NewsItem => ({
+          id: String(r?.id ?? r?.url ?? ""),
+          headline: typeof r?.headline === "string" ? r.headline.trim() : "",
+          summary: typeof r?.summary === "string" ? r.summary.trim() : "",
+          url: typeof r?.url === "string" && r.url ? r.url : null,
+          // Finnhub reports unix seconds.
+          datetime: Number.isFinite(r?.datetime) ? r.datetime * 1000 : 0,
+        }))
+        .filter((n) => n.id && n.headline);
+    } catch (e) {
+      logger.warn({ err: e, category }, "finnhub news fetch failed");
+      return [];
     }
   }
 }

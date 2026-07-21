@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, afterEach } from "vitest";
 import express from "express";
 import request from "supertest";
 import { requireAccessToken } from "./auth";

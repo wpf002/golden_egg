@@ -221,3 +221,53 @@ describe("POST /api/scan/run — concurrency guard", () => {
     if (claim.ok) await storage.finishScanRun(claim.run.id, { status: "error", finishedAt: Date.now() });
   });
 });
+
+describe("theme proposal routes", () => {
+  it("lists proposals with parsed evidence", async () => {
+    await storage.createThemeProposal({
+      name: "Drone logistics",
+      rationale: "Recurring FAA and delivery-expansion catalysts",
+      evidence: JSON.stringify(["FAA clears corridor", "Amazon expands delivery"]),
+      status: "pending",
+      createdAt: Date.now(),
+      decidedAt: null,
+    });
+    const res = await request(app).get("/api/themes/proposals").expect(200);
+    const row = res.body.find((p: any) => p.name === "Drone logistics");
+    expect(row).toBeTruthy();
+    expect(row.evidence).toEqual(["FAA clears corridor", "Amazon expands delivery"]);
+  });
+
+  it("approving a proposal adds a custom theme; re-deciding 409s", async () => {
+    const p = await storage.createThemeProposal({
+      name: "Desalination buildout",
+      rationale: "r",
+      evidence: JSON.stringify(["a", "b"]),
+      status: "pending",
+      createdAt: Date.now(),
+      decidedAt: null,
+    });
+    await request(app).post(`/api/themes/proposals/${p.id}/decide`).send({ approve: true }).expect(200);
+    const custom = await storage.listCustomThemes();
+    expect(custom.map((c) => c.name)).toContain("Desalination buildout");
+    await request(app).post(`/api/themes/proposals/${p.id}/decide`).send({ approve: false }).expect(409);
+  });
+
+  it("dismissing does not add a custom theme", async () => {
+    const p = await storage.createThemeProposal({
+      name: "One-off fad",
+      rationale: "r",
+      evidence: JSON.stringify(["a", "b"]),
+      status: "pending",
+      createdAt: Date.now(),
+      decidedAt: null,
+    });
+    await request(app).post(`/api/themes/proposals/${p.id}/decide`).send({ approve: false }).expect(200);
+    const custom = await storage.listCustomThemes();
+    expect(custom.map((c) => c.name)).not.toContain("One-off fad");
+  });
+
+  it("404s on an unknown proposal", async () => {
+    await request(app).post("/api/themes/proposals/99999/decide").send({ approve: true }).expect(404);
+  });
+});

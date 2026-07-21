@@ -36,3 +36,34 @@ describe("resolveLink", () => {
     expect(resolveLink("/a?b=1#c", EIA_FEED)).toBe("https://www.eia.gov/a?b=1#c");
   });
 });
+
+describe("newsToCandidate", () => {
+  const item = (headline: string, summary = "") => ({
+    id: "n1",
+    headline,
+    summary,
+    url: "https://example.com/story",
+    datetime: 1700000000000,
+  });
+
+  it("keeps merger-category items without needing signal keywords", async () => {
+    const { newsToCandidate } = await import("./ingest");
+    const c = newsToCandidate(item("MegaCorp to combine with SmallCo"), "merger");
+    expect(c).not.toBeNull();
+    expect(c!.sourceType).toBe("financial_news");
+    expect(c!.theme).toBe("M&A activity");
+  });
+
+  it("gates general-category items behind the financial-signal keywords", async () => {
+    const { newsToCandidate } = await import("./ingest");
+    expect(newsToCandidate(item("Markets open mixed on Tuesday"), "general")).toBeNull();
+    const kept = newsToCandidate(item("Acme raises guidance after multi-year contract win"), "general");
+    expect(kept).not.toBeNull();
+    expect(kept!.theme).toBe("financial news");
+  });
+
+  it("drops noise like dividend announcements even in merger category", async () => {
+    const { newsToCandidate } = await import("./ingest");
+    expect(newsToCandidate(item("BigCo announces quarterly dividend"), "merger")).toBeNull();
+  });
+});

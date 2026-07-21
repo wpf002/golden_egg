@@ -56,6 +56,16 @@ export type ClassifiedCatalyst = {
   rationale: string;
 };
 
+/**
+ * The classifier's vocabulary: compiled canonical themes plus any the user has
+ * approved from scout proposals. Order is stable (canonical first, customs in
+ * creation order) so the numeric theme_id protocol stays unambiguous.
+ */
+export async function activeThemes(): Promise<string[]> {
+  const custom = await storage.listCustomThemes();
+  return [...CANONICAL_THEMES, ...custom.map((c) => c.name)];
+}
+
 export async function classifyCatalysts(catalysts: Catalyst[]): Promise<ClassifiedCatalyst[]> {
   if (catalysts.length === 0) return [];
   const items = catalysts.map((c) => ({
@@ -65,7 +75,8 @@ export async function classifyCatalysts(catalysts: Catalyst[]): Promise<Classifi
     summary: c.summary.slice(0, 250),
   }));
 
-  const themeList = CANONICAL_THEMES.map((t, i) => `${i + 1}. ${t}`).join("\n");
+  const themes = await activeThemes();
+  const themeList = themes.map((t, i) => `${i + 1}. ${t}`).join("\n");
 
   const prompt = `You are triaging market catalysts for a parallel-market ("picks and shovels") equity screener.
 
@@ -91,7 +102,8 @@ Return ONLY a JSON object of shape: { "results": [{ "catalyst_id": N, "keep": bo
       // Prefer the numeric id \u2014 it either indexes the list or it doesn't, so
       // there's no room for the drift that kept the cache at a 0% hit rate.
       // Fall back to the string form for older/looser model output.
-      const theme = themeFromId(r.theme_id) || coerceToCanonical(String(r.normalized_theme ?? ""));
+      const theme =
+        themeFromId(r.theme_id, themes) || coerceToCanonical(String(r.normalized_theme ?? ""), themes);
       return {
         catalyst_id: Number(r.catalyst_id),
         // No canonical theme => not something we track. Rejecting beats minting
@@ -133,7 +145,8 @@ export async function assignCanonicalThemes(catalysts: Catalyst[]): Promise<Reco
     title: c.title.slice(0, 200),
     summary: c.summary.slice(0, 250),
   }));
-  const themeList = CANONICAL_THEMES.map((t, i) => `${i + 1}. ${t}`).join("\n");
+  const themes = await activeThemes();
+  const themeList = themes.map((t, i) => `${i + 1}. ${t}`).join("\n");
 
   const prompt = `Classify each market catalyst under the single best-fitting theme.
 
@@ -156,7 +169,7 @@ Return ONLY JSON: { "results": [{ "catalyst_id": N, "theme_id": N }] }`;
     const parsed = extractJson(text);
     const out: Record<number, string> = {};
     for (const r of (parsed?.results ?? []) as Array<Record<string, unknown>>) {
-      const theme = themeFromId(r.theme_id);
+      const theme = themeFromId(r.theme_id, themes);
       const id = Number(r.catalyst_id);
       if (theme && Number.isInteger(id)) out[id] = theme;
     }

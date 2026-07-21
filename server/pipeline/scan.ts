@@ -3,8 +3,16 @@
  * Callable from an API route or from a scheduled task.
  */
 import { storage } from "../storage";
-import { ingestSecEightK, ingestRss, ingestMarketSignals, persistCandidates, SCAN_THEMES } from "./ingest";
+import {
+  ingestSecEightK,
+  ingestRss,
+  ingestMarketSignals,
+  ingestFinancialNews,
+  persistCandidates,
+  SCAN_THEMES,
+} from "./ingest";
 import { processCatalysts } from "./ripple";
+import { scoutThemes } from "./theme-scout";
 import { env } from "../config";
 import { log } from "../logger";
 
@@ -39,12 +47,13 @@ export async function runFullScan() {
 
   try {
     // 1. INGEST — cheap, structured, no LLM cost
-    const [secCandidates, rssCandidates, marketCandidates] = await Promise.all([
+    const [secCandidates, rssCandidates, marketCandidates, newsCandidates] = await Promise.all([
       ingestSecEightK(SCAN_THEMES, 3),
       ingestRss(),
       ingestMarketSignals(),
+      ingestFinancialNews(),
     ]);
-    const all = [...secCandidates, ...rssCandidates, ...marketCandidates];
+    const all = [...secCandidates, ...rssCandidates, ...marketCandidates, ...newsCandidates];
     const { total, newCount } = await persistCandidates(all);
     logger.info({ runId: run.id, ingested: total, new: newCount }, "ingest complete");
 
@@ -61,6 +70,18 @@ export async function runFullScan() {
 
     // 3. Two-tier reasoning, bounded by the credit ceiling
     const stats = await processCatalysts(unanalyzed, env.SCAN_MAX_CREDITS);
+
+    // 4. Theme scout — cluster unplaceable rejects into candidate new themes
+    // for the user to approve. Fires only when enough fresh material piled up;
+    // never allowed to fail the scan.
+    try {
+      const scout = await scoutThemes();
+      if (scout.proposed > 0) {
+        logger.info({ runId: run.id, proposed: scout.proposed }, "theme scout proposed new themes");
+      }
+    } catch (e) {
+      logger.warn({ err: e, runId: run.id }, "theme scout errored — scan unaffected");
+    }
 
     await storage.finishScanRun(run.id, {
       finishedAt: Date.now(),

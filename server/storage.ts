@@ -8,6 +8,8 @@ import {
   scanRuns,
   priceAlerts,
   dailyCloses,
+  themeProposals,
+  customThemes,
 } from "@shared/schema";
 import type {
   Catalyst,
@@ -29,6 +31,9 @@ import type {
   InsertPriceAlert,
   PriceAlertWithEgg,
   InsertDailyClose,
+  ThemeProposal,
+  InsertThemeProposal,
+  CustomTheme,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -149,6 +154,16 @@ export interface IStorage {
   finishScanRun(id: number, patch: Partial<ScanRun>): Promise<void>;
   listScanRuns(limit?: number): Promise<ScanRun[]>;
   getLatestScanRun(): Promise<ScanRun | undefined>;
+
+  // Theme scout
+  /** Analyzed-but-unplaced catalysts (no canonical theme) — the scout's raw material. */
+  listUnplacedRejects(sinceMs: number, limit?: number): Promise<Catalyst[]>;
+  createThemeProposal(p: InsertThemeProposal): Promise<ThemeProposal>;
+  listThemeProposals(limit?: number): Promise<ThemeProposal[]>;
+  getThemeProposal(id: number): Promise<ThemeProposal | undefined>;
+  decideThemeProposal(id: number, status: "approved" | "dismissed", decidedAt: number): Promise<void>;
+  listCustomThemes(): Promise<CustomTheme[]>;
+  addCustomTheme(name: string, createdAt: number): Promise<CustomTheme>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -529,6 +544,44 @@ export class DatabaseStorage implements IStorage {
   }
   async getLatestScanRun() {
     return db.select().from(scanRuns).orderBy(desc(scanRuns.startedAt)).limit(1).get();
+  }
+
+  // Theme scout
+  async listUnplacedRejects(sinceMs: number, limit = 40) {
+    return db
+      .select()
+      .from(catalysts)
+      .where(
+        and(
+          eq(catalysts.rippleAnalyzed, true),
+          sql`(${catalysts.canonicalTheme} IS NULL OR ${catalysts.canonicalTheme} = '')`,
+          sql`${catalysts.sourceType} != 'seed'`,
+          gte(catalysts.lastSeenAt, sinceMs)
+        )
+      )
+      .orderBy(desc(catalysts.lastSeenAt))
+      .limit(limit)
+      .all();
+  }
+  async createThemeProposal(p: InsertThemeProposal) {
+    return db.insert(themeProposals).values(p).returning().get();
+  }
+  async listThemeProposals(limit = 25) {
+    return db.select().from(themeProposals).orderBy(desc(themeProposals.createdAt)).limit(limit).all();
+  }
+  async getThemeProposal(id: number) {
+    return db.select().from(themeProposals).where(eq(themeProposals.id, id)).get();
+  }
+  async decideThemeProposal(id: number, status: "approved" | "dismissed", decidedAt: number) {
+    db.update(themeProposals).set({ status, decidedAt }).where(eq(themeProposals.id, id)).run();
+  }
+  async listCustomThemes() {
+    return db.select().from(customThemes).orderBy(asc(customThemes.createdAt)).all();
+  }
+  async addCustomTheme(name: string, createdAt: number) {
+    const existing = db.select().from(customThemes).where(eq(customThemes.name, name)).get();
+    if (existing) return existing;
+    return db.insert(customThemes).values({ name, createdAt }).returning().get();
   }
 }
 
