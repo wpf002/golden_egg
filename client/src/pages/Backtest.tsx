@@ -99,8 +99,8 @@ export default function BacktestPage() {
       <div className="mb-6 flex items-center gap-3 flex-wrap">
         <div className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
           Every egg gets scored from the first market close after we flagged it through the most recent close
-          we have. Results roll up by theme, sector, and hop distance. Prices come from our own store of daily
-          closes, so this is instant and free to run.
+          we have. Results roll up by theme, sector, and tier. Prices come from our own store of daily closes,
+          so this is instant and free to run.
         </div>
         <Button
           onClick={() => runMut.mutate()}
@@ -185,7 +185,7 @@ export default function BacktestPage() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
           <RollupTable title="By theme" rows={result.byTheme} keyLabel="Theme" />
           <RollupTable title="By sector" rows={result.bySector} keyLabel="Sector" />
-          <RollupTable title="By distance from the news" rows={result.byHop} keyLabel="Distance" />
+          <RollupTable title="By tier" rows={result.byHop} keyLabel="Tier" />
           <div />
         </div>
       )}
@@ -204,7 +204,7 @@ export default function BacktestPage() {
                   <th className="px-3 py-2 text-left">Ticker</th>
                   <th className="px-3 py-2 text-left">Company</th>
                   <th className="px-3 py-2 text-left">Theme</th>
-                  <th className="px-3 py-2 text-right">Hop</th>
+                  <th className="px-3 py-2 text-right">Tier</th>
                   <th className="px-3 py-2 text-right">Flag date</th>
                   <th className="px-3 py-2 text-right">Days</th>
                   <th className="px-3 py-2 text-right">Flag close</th>

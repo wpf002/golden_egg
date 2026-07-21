@@ -283,7 +283,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const byTheme = rollup((r) => r.theme);
       const bySector = rollup((r) => r.sector ?? "Unknown");
       const byHop = rollup((r) =>
-        r.hopDistance === 1 ? "Direct" : r.hopDistance === 2 ? "2 hops out" : "3 hops out"
+        r.hopDistance === 1 ? "First tier" : r.hopDistance === 2 ? "Second tier" : "Third tier"
       );
 
       // Overall
