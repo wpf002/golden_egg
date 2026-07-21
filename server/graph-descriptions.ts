@@ -1,0 +1,123 @@
+/**
+ * Plain-English descriptions for every seeded supply-chain node: what it is
+ * and why it sits in the chain. Shown in the Supply Graph detail panel so a
+ * node like "Child-resistant packaging" explains its own presence instead of
+ * looking arbitrary.
+ *
+ * Single source of truth: the seeder reads it for fresh installs, and a
+ * boot-time backfill (storage.ts) fills any node that's still missing one —
+ * so already-deployed databases pick these up on the next restart.
+ */
+export const NODE_DESCRIPTIONS: Record<string, string> = {
+  // === AI infrastructure ===
+  "ai-datacenter": "Hyperscale compute infrastructure for AI training and inference",
+  nvidia: "Sells the GPUs nearly every AI datacenter is built around",
+  amd: "The main GPU alternative to NVIDIA; wins share when buyers want a second source",
+  broadcom: "Designs custom AI chips for hyperscalers and the networking silicon between them",
+  "hbm-memory": "High Bandwidth Memory stacks — every AI GPU needs several; supply is chronically tight",
+  "sk-hynix": "HBM memory leader; NVIDIA's primary supplier",
+  micron: "The US maker of HBM memory; capacity is sold out years ahead",
+  tsmc: "Fabricates nearly every advanced AI chip — NVIDIA, AMD, and Apple are all customers",
+  asml: "Sole maker of the EUV lithography machines advanced chip fabs require",
+  "applied-materials": "Sells chip-fab equipment; more fabs being built means more tools ordered",
+  "lam-research": "Etch and deposition equipment for chip fabs — same fab-buildout tailwind",
+  vertiv: "Power and cooling gear for datacenters; AI racks run hot and dense",
+  eaton: "Electrical switchgear and power distribution that every new datacenter needs",
+  "quanta-services": "Builds the transmission lines that bring grid power to datacenters",
+  "constellation-energy": "Largest US nuclear fleet — sells 24/7 carbon-free power AI datacenters want",
+  vistra: "Independent power producer whose plants gain value as datacenter demand grows",
+  arista: "High-speed networking switches that link GPUs into clusters",
+  "credo-tech": "Cables and connectivity chips for inside AI clusters",
+  coherent: "Optical transceivers that carry data between AI racks",
+  supermicro: "Assembles GPU servers; ships fast when hyperscalers rush to deploy",
+  dell: "Builds AI servers at enterprise scale alongside its PC business",
+  // === EV / battery chain ===
+  "ev-adoption": "Electric-vehicle growth pulls demand through battery metals and charging",
+  lithium: "The metal every EV battery chemistry needs",
+  albemarle: "One of the largest lithium producers",
+  sqm: "Chilean lithium producer with some of the lowest extraction costs",
+  nickel: "Battery-cathode metal for longer-range EVs",
+  vale: "Major nickel (and iron ore) miner",
+  copper: "EVs use roughly twice the copper of gas cars; grids need even more",
+  freeport: "One of the biggest copper miners — a broad electrification play",
+  "southern-copper": "Low-cost copper producer with large reserves",
+  graphite: "The anode material in essentially every lithium-ion battery",
+  "aehr-test": "Tests silicon-carbide chips used in EV drivetrains",
+  wolfspeed: "Makes silicon-carbide chips that improve EV range and charging speed",
+  chargepoint: "Charging-station network that grows with the EV fleet",
+  // === Cannabis / CBD second-order ===
+  "cannabis-industry": "Federally illegal in US, forces cash-only operations at retail",
+  "cash-logistics": "Armored transport for an industry that can't use banks — cash must physically move",
+  brinks: "Half of the US cash-in-transit duopoly; cannabis cash is a growth slice",
+  loomis: "The other half of the cash-in-transit duopoly",
+  "armored-truck-oem": "More cash routes means more armored vehicles ordered",
+  "commercial-truck-parts": "Drivetrains and parts under those armored fleets",
+  "allison-transmission": "Transmissions for armored and vocational trucks",
+  cummins: "Engines for the commercial truck fleet",
+  paccar: "Builds the Kenworth and Peterbilt trucks fleets buy",
+  "safes-vaults": "Cash-heavy retailers need on-site secure storage",
+  "cannabis-packaging":
+    "State law requires cannabis and CBD products to ship in certified child-resistant packaging — packaging makers sell more units as the industry grows, with none of the plant-touching risk",
+  // === GLP-1 chain ===
+  "glp1-drugs": "Obesity and diabetes drugs growing faster than manufacturing can keep up",
+  "novo-nordisk": "Makes Ozempic and Wegovy — one half of the GLP-1 duopoly",
+  "eli-lilly": "Makes Mounjaro and Zepbound — the other half",
+  "auto-injector-pens": "Every weekly dose ships in an injector pen; pen capacity is the bottleneck",
+  "west-pharma": "Elastomer stoppers and plungers in nearly every injectable — sells picks, not the drug",
+  gerresheimer: "Glass cartridges and syringes for injectables; capacity booked years out",
+  "novo-holdings-catalent":
+    "Fill-finish plants that put the drug into the pen — bought by Novo to lock up capacity",
+  "reduced-food-consumption": "If appetites shrink at scale, snack and soda volumes feel it",
+  "kidney-dialysis": "GLP-1s slow kidney disease — fewer future dialysis patients",
+  davita: "Dialysis operator whose long-run demand GLP-1s may erode",
+  // === Defense ===
+  "defense-buildout": "Rearmament cycle across NATO and the Pacific lifts the whole supply chain",
+  lockheed: "Largest US defense prime — fighters and missiles",
+  rtx: "Missiles and air defense; restocking munitions is a multi-year tailwind",
+  northrop: "Bombers, space and nuclear-modernization programs",
+  "general-dynamics": "Submarines, tanks and munitions",
+  howmet: "Engineered metal parts inside military and commercial jets",
+  "curtiss-wright": "Actuation, sensors and nuclear-grade components under many platforms",
+  moog: "Precision motion control on aircraft and missiles",
+  kratos: "Low-cost drones and target aircraft",
+  "aerojet-l3": "Defense electronics and rocket propulsion",
+  "energetic-materials": "Propellants and explosives — the choke point in rebuilding missile stocks",
+  // === Nuclear ===
+  "nuclear-resurgence": "Datacenter power demand and energy security are reviving nuclear buildouts",
+  cameco: "One of the largest uranium miners in the west",
+  "uranium-enrichment": "Enrichment capacity is scarce outside Russia — a strategic bottleneck",
+  "centrus-energy": "The only US-owned enricher; sole domestic HALEU source for new reactor designs",
+  "bwx-tech": "Builds naval reactors and components for new nuclear projects",
+  nuscale: "First US-approved small-modular-reactor design",
+  oklo: "Developing microreactors aimed at datacenters and remote sites",
+  "sprott-uranium": "Holds physical uranium — a direct way to own the commodity",
+  "uranium-royalty": "Royalty exposure to uranium prices without mine risk",
+  // === Reshoring / CHIPS ===
+  reshoring: "Factories coming back to the US means concrete, steel and electrical work",
+  "eagle-materials": "Cement and wallboard for industrial construction",
+  "vulcan-materials": "Crushed stone and aggregates under every new plant and road",
+  "martin-marietta": "Aggregates and cement — same buildout, different footprint",
+  nucor: "US steelmaker feeding factory and infrastructure construction",
+  "steel-dynamics": "Steel for the same onshoring buildout",
+  "quanta-services2": "Grid contractor wiring new factories into the power system",
+  emcor: "Mechanical and electrical contractor for industrial facilities",
+  "comfort-systems": "HVAC and mechanical systems inside new plants",
+  wesco: "Distributes the electrical components every project orders",
+  // === Sports betting ===
+  "sports-betting": "State-by-state legalization keeps expanding the betting market",
+  draftkings: "One of the two dominant US sportsbooks",
+  flutter: "Owns FanDuel, the US market-share leader",
+  "genius-sports": "Licenses the official data feeds sportsbooks must buy",
+  sportradar: "The other major sports-data provider — sells to every book",
+  everi: "Payments and cash-access technology inside casinos",
+  "int-game-tech": "Lottery and gaming technology with betting exposure",
+  // === Hyperscaler capex ===
+  "hyperscaler-capex": "Big-tech capital spending is the single flow funding the AI buildout",
+  microsoft: "Spends tens of billions a year on AI datacenters",
+  meta: "Same capex wave, aimed at AI for its own products",
+  alphabet: "Google's datacenter and TPU spending",
+  amazon: "AWS — the largest cloud, building AI capacity worldwide",
+  "digital-realty": "Leases datacenter space to the hyperscalers",
+  equinix: "Interconnection datacenters where clouds and networks meet",
+  "iron-mountain": "Storage-and-records company growing a datacenter arm",
+};

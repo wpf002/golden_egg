@@ -35,6 +35,7 @@ import Database from "better-sqlite3";
 import { eq, desc, asc, sql, lt, lte, gte, and, isNotNull, isNull } from "drizzle-orm";
 import { env } from "./config";
 import { runMigrations } from "./migrate";
+import { NODE_DESCRIPTIONS } from "./graph-descriptions";
 
 export const sqlite = new Database(env.DB_PATH);
 sqlite.pragma("journal_mode = WAL");
@@ -45,6 +46,19 @@ sqlite.pragma("busy_timeout = 5000");
 // Versioned migrations, applied once at startup. (This replaced a set of
 // unversioned addColumnIfMissing calls that ran on every boot.)
 runMigrations(sqlite);
+
+// Fill in descriptions for seeded graph nodes that predate the description
+// catalog. Idempotent: only touches rows whose description is still empty,
+// so nothing a user (or future seed) wrote gets overwritten.
+{
+  const upd = sqlite.prepare(
+    "UPDATE nodes SET description = ? WHERE slug = ? AND (description IS NULL OR description = '')"
+  );
+  const backfill = sqlite.transaction(() => {
+    for (const [slug, description] of Object.entries(NODE_DESCRIPTIONS)) upd.run(description, slug);
+  });
+  backfill();
+}
 
 export const db = drizzle(sqlite);
 

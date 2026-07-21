@@ -8,6 +8,7 @@
  * All chains are documented public-market relationships. Nothing is trading advice.
  */
 import { storage } from "./storage";
+import { NODE_DESCRIPTIONS } from "./graph-descriptions";
 import type { InsertNode, InsertCatalyst, InsertGoldenEgg } from "@shared/schema";
 
 const now = Date.now();
@@ -870,15 +871,21 @@ async function main() {
   let nodesCreated = 0;
   let edgesCreated = 0;
 
+  // Inline description wins; the shared catalog fills the rest.
+  const withDescription = (spec: NodeSpec): NodeSpec => ({
+    ...spec,
+    description: spec.description ?? NODE_DESCRIPTIONS[spec.slug],
+  });
+
   for (const chain of chains) {
-    const rootNode = await storage.upsertNode({ ...chain.root, createdAt: now });
+    const rootNode = await storage.upsertNode({ ...withDescription(chain.root), createdAt: now });
     if (rootNode.createdAt === now) nodesCreated++;
 
     const nodeMap = new Map<string, number>();
     nodeMap.set(chain.root.slug, rootNode.id);
 
     for (const hop of chain.hops) {
-      const created = await storage.upsertNode({ ...hop.node, createdAt: now });
+      const created = await storage.upsertNode({ ...withDescription(hop.node), createdAt: now });
       nodeMap.set(hop.node.slug, created.id);
       const fromId = nodeMap.get(hop.from ?? chain.root.slug);
       if (!fromId) {
