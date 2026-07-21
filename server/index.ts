@@ -9,6 +9,7 @@ import { createServer } from "node:http";
 import { validateProviders, env } from "./config";
 import { logger } from "./logger";
 import { apiLimiter, expensiveLimiter } from "./middleware/rate-limit";
+import { requireAccessToken } from "./middleware/auth";
 import { startScheduledTasks, stopScheduledTasks } from "./scheduler";
 
 // Fail loud at boot if the selected providers are missing credentials,
@@ -66,8 +67,10 @@ app.use(
   })
 );
 
-// Rate limiting: a general cap on the API, plus a tighter one on the routes
-// that cost real money (LLM credits) or hammer the quotes provider.
+// Access gate first (when ACCESS_TOKEN is set), then rate limiting: a general
+// cap on the API, plus a tighter one on the routes that cost real money
+// (LLM credits) or hammer the quotes provider.
+app.use("/api", requireAccessToken);
 app.use("/api", apiLimiter);
 app.use("/api/scan/run", expensiveLimiter);
 app.use("/api/backtest/run", expensiveLimiter);

@@ -36,6 +36,12 @@ const schema = z.object({
   SCAN_MAX_CATALYSTS: z.coerce.number().int().positive().default(25),
   SCAN_MAX_CREDITS: z.coerce.number().int().positive().default(400),
 
+  // Access gate: when set, every /api request must carry this value in the
+  // x-access-token header. Empty (the default) disables the gate, so local
+  // dev and tests run friction-free; production sets it because the app is
+  // on a public URL and a scan spends real credits.
+  ACCESS_TOKEN: z.string().default(""),
+
   // Data
   DB_PATH: z.string().default("./data.db"),
 

@@ -13,6 +13,7 @@ import GraphPage from "@/pages/Graph";
 import WatchlistPage from "@/pages/Watchlist";
 import BacktestPage from "@/pages/Backtest";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AccessGate } from "@/components/AccessGate";
 
 function AppRouter() {
   return (
@@ -33,14 +34,16 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router hook={useHashLocation}>
-          <AppShell>
-            {/* Inside AppShell so a page crash keeps the nav usable. */}
-            <ErrorBoundary>
-              <AppRouter />
-            </ErrorBoundary>
-          </AppShell>
-        </Router>
+        <AccessGate>
+          <Router hook={useHashLocation}>
+            <AppShell>
+              {/* Inside AppShell so a page crash keeps the nav usable. */}
+              <ErrorBoundary>
+                <AppRouter />
+              </ErrorBoundary>
+            </AppShell>
+          </Router>
+        </AccessGate>
       </TooltipProvider>
     </QueryClientProvider>
   );

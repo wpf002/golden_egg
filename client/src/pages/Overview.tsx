@@ -71,16 +71,31 @@ export default function Overview() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {/* A plain link, not a fetch: lets the browser handle the download. */}
-          <Button variant="outline" asChild>
-            <a
-              href="/api/export/markdown?topN=20&download=true"
-              download
-              data-testid="button-export-markdown"
-            >
-              <Download size={14} className="mr-2" />
-              Export Top 20
-            </a>
+          {/* Fetched (not a plain link) so the access-gate header rides along. */}
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const res = await apiRequest("GET", "/api/export/markdown?topN=20");
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "golden-eggs.md";
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch (e) {
+                toast({
+                  title: "Export Failed",
+                  description: e instanceof Error ? e.message : "Unknown error",
+                  variant: "destructive",
+                });
+              }
+            }}
+            data-testid="button-export-markdown"
+          >
+            <Download size={14} className="mr-2" />
+            Export Top 20
           </Button>
           <Button
             onClick={() => scanMut.mutate()}

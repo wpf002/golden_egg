@@ -48,6 +48,10 @@ async function buildOutcomeRows(): Promise<{ rows: OutcomeRow[]; byEggId: Map<nu
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
+  // Probe for the client's access gate: the auth middleware runs before this,
+  // so a 204 here means "your token works (or no gate is configured)".
+  app.get("/api/auth/check", (_req, res) => res.status(204).end());
+
   // ---------- Catalysts ----------
   app.get("/api/catalysts", async (_req, res) => {
     try {
