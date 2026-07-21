@@ -9,6 +9,7 @@ import { ExternalLink, Star, Clock, TrendingUp, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { RipplePathViz } from "@/components/RipplePathViz";
 import { returnVsFlag, deltaColor } from "@/lib/returns";
+import { hopLabel } from "@/lib/text";
 
 export function EggDetailSheet({ eggId, onClose }: { eggId: number | null; onClose: () => void }) {
   const open = eggId != null;
@@ -58,14 +59,7 @@ export function EggDetailSheet({ eggId, onClose }: { eggId: number | null; onClo
   );
   const deltaClass = deltaColor(deltaPct);
 
-  const hopLabel =
-    egg?.hopDistance === 1
-      ? "1st-order"
-      : egg?.hopDistance === 2
-        ? "2nd-order"
-        : egg?.hopDistance === 3
-          ? "3rd-order"
-          : `hop ${egg?.hopDistance}`;
+  const hopBadge = hopLabel(egg?.hopDistance);
 
   return (
     <Sheet
@@ -115,7 +109,7 @@ export function EggDetailSheet({ eggId, onClose }: { eggId: number | null; onClo
 
             {/* Meta badges */}
             <div className="flex flex-wrap items-center gap-1.5 mb-6 text-[10px] uppercase tracking-wider">
-              <span className="bg-primary-subtle px-1.5 py-0.5 rounded font-medium">{hopLabel}</span>
+              <span className="bg-primary-subtle px-1.5 py-0.5 rounded font-medium">{hopBadge}</span>
               {egg.verified && (
                 <span
                   className="bg-emerald-400/10 text-emerald-400 px-1.5 py-0.5 rounded font-medium"

@@ -36,13 +36,16 @@ async function buildOutcomeRows(): Promise<{ rows: OutcomeRow[]; byEggId: Map<nu
   for (const e of eggs) {
     const theme = rollupTheme(e.catalyst);
     byEggId.set(e.id, theme);
+    // Same rule as the backtest: a pick younger than ~one trading day has no
+    // outcome yet, and calibration must not read "hasn't moved" as "lost".
+    const tooNew = Date.now() - (e.priceAtFlagDate ?? e.createdAt) < 3 * 86_400_000;
     const { returnPct } = scoreReturn({
       closes: closesByTicker[e.ticker.toUpperCase()] ?? [],
       flagDate: toYmd(e.priceAtFlagDate ?? e.createdAt),
       priceAtFlag: e.priceAtFlag,
       currentPrice: e.currentPrice,
     });
-    rows.push({ theme, confidence: e.confidence, returnPct });
+    rows.push({ theme, confidence: e.confidence, returnPct: tooNew ? null : returnPct });
   }
   return { rows, byEggId };
 }
@@ -195,7 +198,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         daysHeld: number;
         /** Flag price looks corrupt; excluded from the rollups. */
         suspect: boolean;
+        /** Flagged less than MIN_SCORING_DAYS ago — listed, but not scored. */
+        tooNew: boolean;
       };
+      // A pick that hasn't had time to move shouldn't count against the hit
+      // rate: a day-old egg sits at 0.0% and reads as a miss when it's really
+      // just unscored. Three calendar days ≈ at least one full trading day.
+      const MIN_SCORING_DAYS = 3;
       const rows: Row[] = [];
       for (const e of eggs) {
         const t = e.ticker.toUpperCase();
@@ -233,6 +242,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           returnPct,
           daysHeld,
           suspect,
+          tooNew: daysHeld < MIN_SCORING_DAYS,
         });
       }
 
@@ -247,7 +257,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }> {
         const buckets = new Map<string, Row[]>();
         for (const r of rows) {
-          if (r.returnPct == null) continue;
+          if (r.returnPct == null || r.tooNew) continue;
           const k = key(r) || "\u2014";
           if (!buckets.has(k)) buckets.set(k, []);
           buckets.get(k)!.push(r);
@@ -272,10 +282,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const byTheme = rollup((r) => r.theme);
       const bySector = rollup((r) => r.sector ?? "Unknown");
-      const byHop = rollup((r) => `hop-${r.hopDistance}`);
+      const byHop = rollup((r) =>
+        r.hopDistance === 1 ? "Direct" : r.hopDistance === 2 ? "2 hops out" : "3 hops out"
+      );
 
       // Overall
-      const withReturns = rows.filter((r) => r.returnPct != null);
+      const withReturns = rows.filter((r) => r.returnPct != null && !r.tooNew);
       const overall = withReturns.length
         ? {
             count: withReturns.length,
@@ -294,6 +306,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         bySector,
         byHop,
         overall,
+        tooNewCount: rows.filter((r) => r.tooNew).length,
         generatedAt: Date.now(),
         // "close" = real daily closes; "spot" = last refreshed quote, because
         // the configured provider's plan doesn't include historical candles.

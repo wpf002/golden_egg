@@ -53,3 +53,15 @@ export function titleCase(input: string): string {
     })
     .join("");
 }
+
+/**
+ * Human label for hop distance — how far the pick sits from the news.
+ * "3rd-order" read like model jargon; this is the app's own vocabulary
+ * ("two or three hops down the supply chain").
+ */
+export function hopLabel(hop: number | undefined): string {
+  if (hop === 1) return "direct";
+  if (hop === 2) return "2 hops out";
+  if (hop === 3) return "3 hops out";
+  return hop ? `${hop} hops out` : "";
+}

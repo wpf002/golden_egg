@@ -88,6 +88,7 @@ export type BacktestRow = {
   daysHeld: number;
   /** Flag price looks corrupt (placeholder/parse error) — excluded from rollups. */
   suspect?: boolean;
+  tooNew?: boolean;
 };
 
 export type BacktestRollup = {
@@ -111,6 +112,7 @@ export type BacktestResult = {
     medianReturn: number;
     avgReturn: number;
   } | null;
+  tooNewCount?: number;
   generatedAt: number;
   /**
    * "close" = returns computed from real daily closes.

@@ -42,7 +42,7 @@ function CalibrationTable() {
               <th className="px-3 py-2 text-left">Theme</th>
               <th className="px-3 py-2 text-right">Scored Picks</th>
               <th className="px-3 py-2 text-right">Model Confidence</th>
-              <th className="px-3 py-2 text-right">Real Win Rate</th>
+              <th className="px-3 py-2 text-right">% Actually Up</th>
               <th className="px-3 py-2 text-right">Calibrated</th>
             </tr>
           </thead>
@@ -88,7 +88,7 @@ export default function BacktestPage() {
       setPage(1);
       toast({
         title: "Backtest Complete",
-        description: `${j.rows.length} rows · ${j.overall ? `${(j.overall.winRate * 100).toFixed(0)}% win rate` : "no returns yet"}`,
+        description: `${j.rows.length} picks · ${j.overall ? `${(j.overall.winRate * 100).toFixed(0)}% in the green` : "no returns yet"}`,
       });
     },
     onError: (e: Error) => toast({ title: "Backtest Failed", description: e.message || "Unknown error" }),
@@ -137,11 +137,28 @@ export default function BacktestPage() {
         </div>
       )}
 
+      {!!result?.tooNewCount && (
+        <div
+          className="mb-6 rounded-md border border-border bg-secondary/30 px-4 py-3 text-xs text-muted-foreground"
+          data-testid="banner-too-new"
+        >
+          <span className="font-medium text-foreground">
+            {result.tooNewCount} {result.tooNewCount === 1 ? "pick is" : "picks are"} too new to score.
+          </span>{" "}
+          Anything flagged in the last 3 days hasn&rsquo;t had a real chance to move, so it&rsquo;s listed
+          below but left out of the numbers.
+        </div>
+      )}
+
       {result?.overall && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          <StatCard label="Rows scored" value={String(result.overall.count)} />
-          <StatCard label="Wins" value={String(result.overall.wins)} />
-          <StatCard label="Win rate" value={`${(result.overall.winRate * 100).toFixed(1)}%`} accent="pos" />
+          <StatCard label="Picks scored" value={String(result.overall.count)} />
+          <StatCard label="Currently up" value={String(result.overall.wins)} />
+          <StatCard
+            label="Share in the green"
+            value={`${(result.overall.winRate * 100).toFixed(1)}%`}
+            accent="pos"
+          />
           <StatCard
             label="Median return"
             value={`${result.overall.medianReturn >= 0 ? "+" : ""}${result.overall.medianReturn.toFixed(1)}%`}
@@ -168,7 +185,7 @@ export default function BacktestPage() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
           <RollupTable title="By theme" rows={result.byTheme} keyLabel="Theme" />
           <RollupTable title="By sector" rows={result.bySector} keyLabel="Sector" />
-          <RollupTable title="By hop distance" rows={result.byHop} keyLabel="Hop" />
+          <RollupTable title="By distance from the news" rows={result.byHop} keyLabel="Distance" />
           <div />
         </div>
       )}
@@ -231,9 +248,11 @@ export default function BacktestPage() {
                                 : "text-muted-foreground"
                         }`}
                       >
-                        {r.returnPct == null
-                          ? "—"
-                          : `${r.returnPct >= 0 ? "+" : ""}${r.returnPct.toFixed(1)}%`}
+                        {r.tooNew
+                          ? "too new"
+                          : r.returnPct == null
+                            ? "—"
+                            : `${r.returnPct >= 0 ? "+" : ""}${r.returnPct.toFixed(1)}%`}
                       </td>
                     </tr>
                   ))}
@@ -269,7 +288,7 @@ function RollupTable({ title, rows, keyLabel }: { title: string; rows: BacktestR
             <tr>
               <th className="px-3 py-2 text-left">{keyLabel}</th>
               <th className="px-3 py-2 text-right">N</th>
-              <th className="px-3 py-2 text-right">Win rate</th>
+              <th className="px-3 py-2 text-right">% Up</th>
               <th className="px-3 py-2 text-right">Median</th>
               <th className="px-3 py-2 text-right">Avg</th>
             </tr>

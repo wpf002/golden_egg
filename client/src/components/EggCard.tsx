@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { returnVsFlag, deltaColor } from "@/lib/returns";
 import { useQuery } from "@tanstack/react-query";
 import { Sparkline } from "@/components/Sparkline";
+import { hopLabel } from "@/lib/text";
 
 export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: (id: number) => void }) {
   const qc = useQueryClient();
@@ -32,7 +33,7 @@ export function EggCard({ egg, onOpen }: { egg: GoldenEggWithCatalyst; onOpen?: 
     if (egg.ripplePath) path = JSON.parse(egg.ripplePath);
   } catch {}
 
-  const hopBadge = egg.hopDistance === 1 ? "1st-order" : egg.hopDistance === 2 ? "2nd-order" : "3rd-order";
+  const hopBadge = hopLabel(egg.hopDistance);
 
   // Price delta — suppressed when the flag price is corrupt (see lib/returns).
   const { pct: deltaPct, suspect: badFlagPrice } = returnVsFlag(egg.priceAtFlag, egg.currentPrice);
