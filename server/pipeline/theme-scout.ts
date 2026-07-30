@@ -59,6 +59,31 @@ const GENERIC = new Set([
   "product",
   "products",
   "buildout",
+  // Scope and filler words. Two themes both mentioning "infrastructure" or
+  // "compliance" are not thereby the same theme — only shared SUBJECT words
+  // (arctic, transfusion, insurance) mean that.
+  "infrastructure",
+  "compliance",
+  "safety",
+  "security",
+  "consolidation",
+  "regulatory",
+  "regulation",
+  "operations",
+  "capacity",
+  "demand",
+  "supply",
+  "spend",
+  "spending",
+  "automation",
+  "acceleration",
+  "competition",
+  "strategic",
+  "integration",
+  "commercialization",
+  "distribution",
+  "hedging",
+  "logistics",
 ]);
 
 function significantTokens(name: string): Set<string> {
@@ -71,31 +96,29 @@ function significantTokens(name: string): Set<string> {
 }
 
 /**
- * True when `name` says substantially the same thing as one already taken.
+ * True when `name` covers ground the app already covers.
  *
- * Exact-match dedupe was not enough: the scout proposed "Subsurface Imaging &
- * Infrastructure Inspection" and later "Infrastructure Inspection & Imaging
- * Technology" — different strings, same theme. Two shared significant words
- * is the line, because canonical themes are short and deliberately distinct,
- * so any real overlap of that size means a repeat. Near-duplicate themes are
- * actively harmful: each one is a separate ripple-cache key, so they fragment
- * the cache the canonical vocabulary exists to keep tight.
+ * A proposal costs the user attention, so the bar is "genuinely new subject",
+ * not "different string". Sharing even ONE subject word with an existing theme
+ * is enough to reject — "Arctic & Polar Region" and "Arctic & Cold-Water
+ * Operations" are one theme however differently they're worded. Scope words
+ * (infrastructure, compliance, modernization…) are excluded from the
+ * comparison precisely so this strictness stays meaningful rather than
+ * rejecting everything.
+ *
+ * Being strict here is cheap and being lax is not: every approved theme is its
+ * own ripple-cache key, so overlapping themes fragment the cache the canonical
+ * vocabulary exists to keep tight. A missed proposal costs one idea; a
+ * duplicate costs credits on every scan thereafter.
  */
 export function isDuplicateTheme(name: string, taken: string[]): boolean {
   const a = significantTokens(name);
+  // Nothing but filler — there is no subject here to be new about.
   if (a.size === 0) return true;
   for (const t of taken) {
     if (t.trim().toLowerCase() === name.trim().toLowerCase()) return true;
     const b = significantTokens(t);
-    const shared = [...a].filter((x) => b.has(x)).length;
-    // Two shared significant words is a repeat outright.
-    if (shared >= 2) return true;
-    // With one shared word it depends on how much of each name that word IS.
-    // "Transfusion & Blood" vs "Hemostatic & Transfusion" is half of each, so
-    // it's the same theme. "Drone logistics" vs "Cannabis cash logistics"
-    // also shares one word, but the longer name has more to say — those are
-    // genuinely different, so the rule only fires when BOTH names are short.
-    if (shared >= 1 && a.size <= 2 && b.size <= 2) return true;
+    if ([...a].some((x) => b.has(x))) return true;
   }
   return false;
 }
