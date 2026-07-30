@@ -13,6 +13,7 @@ import {
 } from "./ingest";
 import { processCatalysts } from "./ripple";
 import { scoutThemes } from "./theme-scout";
+import { learnFromPaths } from "./graph-learn";
 import { env } from "../config";
 import { log } from "../logger";
 
@@ -71,7 +72,21 @@ export async function runFullScan() {
     // 3. Two-tier reasoning, bounded by the credit ceiling
     const stats = await processCatalysts(unanalyzed, env.SCAN_MAX_CREDITS);
 
-    // 4. Theme scout — cluster unplaceable rejects into candidate new themes
+    // 4. Fold this scan's reasoning back into the knowledge graph. Runs over
+    // every egg's ripple path, not just the new ones: it's pure local work
+    // (no LLM, no network) and the dedupe makes repeats no-ops, so a scan that
+    // adds nothing is nearly free while older paths still get picked up.
+    try {
+      const eggs = await storage.listAllEggs();
+      const learned = await learnFromPaths(eggs.map((e) => e.ripplePath ?? "[]"));
+      if (learned.nodesAdded || learned.edgesAdded) {
+        logger.info({ runId: run.id, ...learned }, "supply graph grew from this scan's chains");
+      }
+    } catch (e) {
+      logger.warn({ err: e, runId: run.id }, "graph learning errored — scan unaffected");
+    }
+
+    // 5. Theme scout — cluster unplaceable rejects into candidate new themes
     // for the user to approve. Fires only when enough fresh material piled up;
     // never allowed to fail the scan.
     try {

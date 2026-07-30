@@ -10,6 +10,7 @@ import {
   dailyCloses,
   themeProposals,
   customThemes,
+  coattailPicks,
 } from "@shared/schema";
 import type {
   Catalyst,
@@ -34,6 +35,8 @@ import type {
   ThemeProposal,
   InsertThemeProposal,
   CustomTheme,
+  CoattailPick,
+  InsertCoattailPick,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -164,6 +167,11 @@ export interface IStorage {
   decideThemeProposal(id: number, status: "approved" | "dismissed", decidedAt: number): Promise<void>;
   listCustomThemes(): Promise<CustomTheme[]>;
   addCustomTheme(name: string, createdAt: number): Promise<CustomTheme>;
+
+  // Coattails
+  /** Insert, or refresh the figures on an existing rider/anchor pair. */
+  upsertCoattailPick(p: InsertCoattailPick): Promise<CoattailPick>;
+  listCoattailPicks(limit?: number): Promise<CoattailPick[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -582,6 +590,29 @@ export class DatabaseStorage implements IStorage {
     const existing = db.select().from(customThemes).where(eq(customThemes.name, name)).get();
     if (existing) return existing;
     return db.insert(customThemes).values({ name, createdAt }).returning().get();
+  }
+
+  // Coattails
+  async upsertCoattailPick(p: InsertCoattailPick) {
+    const existing = db
+      .select()
+      .from(coattailPicks)
+      .where(
+        and(eq(coattailPicks.riderTicker, p.riderTicker), eq(coattailPicks.anchorTicker, p.anchorTicker))
+      )
+      .get();
+    if (existing) {
+      // Keep the original discovery date — it is the "we saw this first" claim.
+      db.update(coattailPicks)
+        .set({ ...p, discoveredAt: existing.discoveredAt })
+        .where(eq(coattailPicks.id, existing.id))
+        .run();
+      return db.select().from(coattailPicks).where(eq(coattailPicks.id, existing.id)).get()!;
+    }
+    return db.insert(coattailPicks).values(p).returning().get();
+  }
+  async listCoattailPicks(limit = 100) {
+    return db.select().from(coattailPicks).orderBy(desc(coattailPicks.discoveredAt)).limit(limit).all();
   }
 }
 

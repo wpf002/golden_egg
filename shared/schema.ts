@@ -234,10 +234,51 @@ export const customThemes = sqliteTable("custom_themes", {
   createdAt: integer("created_at").notNull(),
 });
 
+/**
+ * COATTAIL PICKS — emerging companies growing off a bigger company's growth.
+ *
+ * The eggs pipeline starts from a news catalyst. This starts from a COMPANY:
+ * pick a giant everyone already watches (NVDA), find the smaller names whose
+ * revenue is pulled along by it, then price them against it on a
+ * growth-adjusted basis so "expensive" and "cheap" mean something.
+ */
+export const coattailPicks = sqliteTable(
+  "coattail_picks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    riderTicker: text("rider_ticker").notNull(),
+    riderName: text("rider_name").notNull(),
+    anchorTicker: text("anchor_ticker").notNull(),
+    anchorName: text("anchor_name").notNull(),
+    /** Why the rider's growth depends on the anchor's. */
+    thesis: text("thesis").notNull(),
+    /** How the money actually flows from anchor to rider. */
+    linkage: text("linkage").notNull(),
+    /** cheaper-for-the-growth | richer-for-the-growth | comparable | unknown */
+    verdict: text("verdict").notNull(),
+    riderRatio: real("rider_ratio"),
+    anchorRatio: real("anchor_ratio"),
+    premiumPct: real("premium_pct"),
+    sizeRatio: real("size_ratio"),
+    riderMarketCapM: real("rider_market_cap_m"),
+    riderGrowthPct: real("rider_growth_pct"),
+    riderPriceToSales: real("rider_price_to_sales"),
+    noveltyScore: real("novelty_score").notNull().default(0.5),
+    discoveredAt: integer("discovered_at").notNull(),
+    refreshedAt: integer("refreshed_at"),
+  },
+  (t) => ({
+    riderIdx: index("coattail_rider_idx").on(t.riderTicker),
+    anchorIdx: index("coattail_anchor_idx").on(t.anchorTicker),
+    pairIdx: uniqueIndex("coattail_pair_idx").on(t.riderTicker, t.anchorTicker),
+  })
+);
+
 // ---- Insert schemas ----
 export const insertCatalystSchema = createInsertSchema(catalysts).omit({ id: true });
 export const insertThemeProposalSchema = createInsertSchema(themeProposals).omit({ id: true });
 export const insertCustomThemeSchema = createInsertSchema(customThemes).omit({ id: true });
+export const insertCoattailPickSchema = createInsertSchema(coattailPicks).omit({ id: true });
 export const insertNodeSchema = createInsertSchema(nodes).omit({ id: true });
 export const insertEdgeSchema = createInsertSchema(edges).omit({ id: true });
 export const insertGoldenEggSchema = createInsertSchema(goldenEggs).omit({ id: true });
@@ -252,6 +293,8 @@ export type Catalyst = typeof catalysts.$inferSelect;
 export type InsertCatalyst = z.infer<typeof insertCatalystSchema>;
 export type ThemeProposal = typeof themeProposals.$inferSelect;
 export type InsertThemeProposal = z.infer<typeof insertThemeProposalSchema>;
+export type CoattailPick = typeof coattailPicks.$inferSelect;
+export type InsertCoattailPick = z.infer<typeof insertCoattailPickSchema>;
 export type CustomTheme = typeof customThemes.$inferSelect;
 export type InsertCustomTheme = z.infer<typeof insertCustomThemeSchema>;
 export type Node = typeof nodes.$inferSelect;

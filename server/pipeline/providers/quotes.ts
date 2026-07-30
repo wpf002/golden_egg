@@ -11,7 +11,7 @@
  */
 import { env, candlesProvider } from "../../config";
 import { log } from "../../logger";
-import { type QuotesProvider, type GainerRow, type NewsItem, withRetry } from "./types";
+import { type QuotesProvider, type GainerRow, type NewsItem, type FundamentalsRow, withRetry } from "./types";
 import { PolygonProvider } from "./polygon";
 
 export type { QuotesProvider, GainerRow } from "./types";
@@ -96,6 +96,29 @@ export class FinnhubProvider implements QuotesProvider {
       return name || null;
     } catch (e) {
       logger.warn({ err: e, ticker }, "finnhub profile lookup failed");
+      return null;
+    }
+  }
+
+  async fundamentals(ticker: string): Promise<FundamentalsRow | null> {
+    try {
+      const r = await withRetry(() =>
+        this.get(`/stock/metric?symbol=${encodeURIComponent(ticker.trim().toUpperCase())}&metric=all`)
+      );
+      const m = r?.metric;
+      if (!m || typeof m !== "object") return null;
+      const num = (v: unknown) => (Number.isFinite(v) ? (v as number) : null);
+      return {
+        marketCapM: num(m.marketCapitalization),
+        priceToSales: num(m.psTTM),
+        peRatio: num(m.peBasicExclExtraTTM),
+        // Quarterly YoY reacts faster than TTM, which matters for names whose
+        // growth is inflecting right now; fall back when it's absent.
+        revenueGrowthPct: num(m.revenueGrowthQuarterlyYoy) ?? num(m.revenueGrowthTTMYoy),
+        grossMarginPct: num(m.grossMarginTTM),
+      };
+    } catch (e) {
+      logger.warn({ err: e, ticker }, "finnhub fundamentals lookup failed");
       return null;
     }
   }

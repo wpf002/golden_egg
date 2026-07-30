@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Logo } from "./Logo";
-import { Sparkles, Zap, Network, Star, Activity, LineChart } from "lucide-react";
+import { Sparkles, Zap, Network, Star, Activity, LineChart, Link2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { PriceAlert } from "@/lib/types";
 
@@ -9,6 +9,7 @@ const navItems = [
   { href: "/eggs", label: "Golden Eggs", icon: Zap },
   { href: "/catalysts", label: "Catalysts", icon: Activity },
   { href: "/graph", label: "Supply Graph", icon: Network },
+  { href: "/coattails", label: "Coattails", icon: Link2 },
   { href: "/backtest", label: "Backtest", icon: LineChart },
   { href: "/watchlist", label: "Watchlist", icon: Star },
 ];
@@ -140,6 +141,7 @@ function pageTitle(loc: string) {
   if (loc.startsWith("/eggs")) return "Golden Eggs";
   if (loc.startsWith("/catalysts")) return "Catalysts";
   if (loc.startsWith("/graph")) return "Supply Graph";
+  if (loc.startsWith("/coattails")) return "Coattails";
   if (loc.startsWith("/backtest")) return "Backtest";
   if (loc.startsWith("/watchlist")) return "Watchlist";
   return "Golden Egg";
@@ -149,6 +151,7 @@ function pageSubtitle(loc: string) {
   if (loc.startsWith("/eggs")) return "The stocks our catalysts point to";
   if (loc.startsWith("/catalysts")) return "The news and filings we're tracking";
   if (loc.startsWith("/graph")) return "How catalysts ripple through supply chains";
+  if (loc.startsWith("/coattails")) return "Who grows when the giants grow";
   if (loc.startsWith("/backtest")) return "How the picks have actually done";
   if (loc.startsWith("/watchlist")) return "Stocks you're keeping an eye on";
   return "";

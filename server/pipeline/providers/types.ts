@@ -8,6 +8,14 @@
 
 export type GainerRow = { symbol: string; name: string; changePct: string };
 
+export type FundamentalsRow = {
+  marketCapM: number | null;
+  priceToSales: number | null;
+  peRatio: number | null;
+  revenueGrowthPct: number | null;
+  grossMarginPct: number | null;
+};
+
 export type NewsItem = {
   id: string;
   headline: string;
@@ -49,6 +57,11 @@ export interface QuotesProvider {
    * the provider has no news endpoint. Feeds catalyst ingestion.
    */
   marketNews?(category: string): Promise<NewsItem[]>;
+  /**
+   * Valuation and growth figures for one ticker. Null when the provider or
+   * plan doesn't expose fundamentals. Powers the coattail comparison.
+   */
+  fundamentals?(ticker: string): Promise<FundamentalsRow | null>;
   /**
    * Every ticker's close for one day, in ONE request.
    *

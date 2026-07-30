@@ -20,6 +20,8 @@ import { scoreReturn } from "./lib/backtest";
 import { analyzeHopLag, type EggSeries } from "./lib/hop-lag";
 import { computeCalibration, calibrate, type OutcomeRow } from "./lib/calibration";
 import { evaluateAlerts } from "./pipeline/alerts";
+import { scanAnchor, suggestAnchors } from "./pipeline/coattails";
+import { answerQuestion, buildRecommendations } from "./pipeline/assistant";
 import { env } from "./config";
 
 /**
@@ -380,6 +382,69 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // How each theme's picks have ACTUALLY done, and how that reshapes the
   // model's confidence. The visible half of the feedback loop.
+  // ---------- Assistant (chat + recommendations) ----------
+  app.post("/api/chat", async (req, res) => {
+    try {
+      const question = String(req.body?.question ?? "").trim();
+      if (question.length < 2) return res.status(400).json({ error: "ask a question" });
+      const history = Array.isArray(req.body?.history) ? req.body.history : [];
+      const answer = await answerQuestion(question, history);
+      res.json({ answer });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Recommendations cost a premium call, so they are computed on request and
+  // held briefly rather than recomputed for every page view.
+  let recCache: { at: number; payload: unknown } | null = null;
+  const REC_TTL_MS = 30 * 60_000;
+  app.get("/api/recommendations", async (req, res) => {
+    try {
+      const force = String(req.query.refresh ?? "") === "true";
+      if (!force && recCache && Date.now() - recCache.at < REC_TTL_MS) {
+        return res.json(recCache.payload);
+      }
+      const payload = await buildRecommendations();
+      recCache = { at: Date.now(), payload };
+      res.json(payload);
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // ---------- Coattails (riders behind a big name) ----------
+  app.get("/api/coattails", async (_req, res) => {
+    try {
+      res.json(await storage.listCoattailPicks(100));
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  app.get("/api/coattails/anchors", async (_req, res) => {
+    try {
+      res.json({ suggested: await suggestAnchors(6) });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  app.post("/api/coattails/scan", async (req, res) => {
+    try {
+      const raw = String(req.body?.anchor ?? "")
+        .trim()
+        .toUpperCase();
+      if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(raw)) {
+        return res.status(400).json({ error: "anchor must be a ticker, e.g. NVDA" });
+      }
+      const out = await scanAnchor(raw);
+      res.json(out);
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
   // ---------- Theme proposals (the scout's output) ----------
   app.get("/api/themes/proposals", async (_req, res) => {
     try {

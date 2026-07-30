@@ -12,6 +12,7 @@ import { Link, useLocation } from "wouter";
 import { LoadingSkeleton, ErrorState, EmptyState } from "@/components/QueryState";
 import { SectorHeatmap } from "@/components/SectorHeatmap";
 import { eggScore } from "@/lib/scoring";
+import { Recommendations } from "@/components/Recommendations";
 
 export default function Overview() {
   const qc = useQueryClient();
@@ -153,6 +154,8 @@ export default function Overview() {
               sublabel={`across ${scans.length} scans`}
             />
           </div>
+
+          <Recommendations />
 
           {/* Sector heatmap */}
           {eggs.length > 0 && (
