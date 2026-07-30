@@ -8,7 +8,7 @@ import { Play, TrendingUp } from "lucide-react";
 import { LoadingSkeleton, EmptyState } from "@/components/QueryState";
 import { Pagination } from "@/components/Pagination";
 
-type CoattailPick = {
+type Rider = {
   id: number;
   riderTicker: string;
   riderName: string;
@@ -27,11 +27,11 @@ type CoattailPick = {
   noveltyScore: number;
 };
 
-const VERDICT_COPY: Record<CoattailPick["verdict"], { label: string; cls: string }> = {
-  "cheaper-for-the-growth": { label: "Cheap For The Growth", cls: "bg-emerald-400/10 text-emerald-400" },
-  "richer-for-the-growth": { label: "Priced In", cls: "bg-rose-400/10 text-rose-400" },
-  comparable: { label: "Priced In Line", cls: "bg-secondary text-secondary-foreground" },
-  unknown: { label: "Not Enough Figures", cls: "bg-secondary text-muted-foreground" },
+const VERDICT_COPY: Record<Rider["verdict"], { label: string; cls: string }> = {
+  "cheaper-for-the-growth": { label: "Better Value", cls: "bg-emerald-400/10 text-emerald-400" },
+  "richer-for-the-growth": { label: "Expensive", cls: "bg-rose-400/10 text-rose-400" },
+  comparable: { label: "About The Same", cls: "bg-secondary text-secondary-foreground" },
+  unknown: { label: "No Figures Yet", cls: "bg-secondary text-muted-foreground" },
 };
 
 function money(m: number | null) {
@@ -43,13 +43,13 @@ function money(m: number | null) {
 
 const PAGE_SIZE = 8;
 
-export default function CoattailsPage() {
+export default function RidersPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [anchor, setAnchor] = useState("");
   const [page, setPage] = useState(1);
 
-  const picksQ = useQuery<CoattailPick[]>({ queryKey: ["/api/coattails"] });
+  const picksQ = useQuery<Rider[]>({ queryKey: ["/api/coattails"] });
   const anchorsQ = useQuery<{ suggested: string[] }>({ queryKey: ["/api/coattails/anchors"] });
   const picks = picksQ.data ?? [];
 
@@ -75,30 +75,31 @@ export default function CoattailsPage() {
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-[1200px] mx-auto">
       <div className="mb-6">
         <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed mb-4">
-          Pick a company everyone already watches. This finds the smaller names whose growth it drags along,
-          then prices each one against it — not on raw multiples, but on how much growth you get per unit of
-          price. A name on 25x sales growing 150% is cheaper than one on 18x growing 85%.
+          Type in a big company everyone already follows. You&rsquo;ll get back the smaller companies that
+          grow when it grows, and whether each one looks cheap or expensive next to it. A company at 25x sales
+          growing 150% is better value than one at 18x growing 85% &mdash; the kind of thing a plain price tag
+          hides.
         </p>
         <div className="flex items-center gap-2 flex-wrap">
           <Input
-            placeholder="Anchor ticker, e.g. NVDA"
+            placeholder="Big company, e.g. NVDA"
             value={anchor}
             onChange={(e) => setAnchor(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === "Enter" && anchor && scanMut.mutate(anchor)}
             className="max-w-[220px] font-mono"
-            data-testid="input-anchor"
+            data-testid="input-big-company"
           />
           <Button
             onClick={() => anchor && scanMut.mutate(anchor)}
             disabled={!anchor || scanMut.isPending}
-            data-testid="button-scan-anchor"
+            data-testid="button-find-riders"
           >
             <Play size={14} className={scanMut.isPending ? "animate-pulse mr-2" : "mr-2"} />
-            {scanMut.isPending ? "Looking…" : "Find Riders"}
+            {scanMut.isPending ? "Looking…" : "Who Grows With It"}
           </Button>
           {(anchorsQ.data?.suggested ?? []).length > 0 && (
             <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
-              <span className="uppercase tracking-wider text-[10px]">From Your Graph:</span>
+              <span className="uppercase tracking-wider text-[10px]">Try:</span>
               {anchorsQ.data!.suggested.map((t) => (
                 <button
                   key={t}
@@ -118,8 +119,8 @@ export default function CoattailsPage() {
 
       {!picksQ.isLoading && picks.length === 0 && (
         <EmptyState
-          message="No riders found yet."
-          hint="Enter a big, widely-owned ticker above — the smaller names it pulls along will show up here."
+          message="Nothing here yet."
+          hint="Put a big company in the box above and we'll show you who grows alongside it."
         />
       )}
 
@@ -130,7 +131,7 @@ export default function CoattailsPage() {
             <div
               key={p.id}
               className="border border-card-border bg-card rounded-md p-4"
-              data-testid={`card-coattail-${p.id}`}
+              data-testid={`card-rider-${p.id}`}
             >
               <div className="flex items-start justify-between gap-4 mb-2 flex-wrap">
                 <div className="min-w-0 flex-1">
@@ -138,7 +139,7 @@ export default function CoattailsPage() {
                     <span className="font-mono text-lg text-primary tabular">{p.riderTicker}</span>
                     <span className="text-sm text-foreground">{p.riderName}</span>
                     <span className="text-xs text-muted-foreground">
-                      rides <span className="font-mono text-foreground/80">{p.anchorTicker}</span>
+                      grows with <span className="font-mono text-foreground/80">{p.anchorTicker}</span>
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-wider">
@@ -157,7 +158,7 @@ export default function CoattailsPage() {
 
               <p className="text-sm text-foreground/80 leading-relaxed mb-3">{p.thesis}</p>
               <div className="text-[11px] text-muted-foreground mb-3">
-                <span className="uppercase tracking-wider">How the money reaches it: </span>
+                <span className="uppercase tracking-wider">Why: </span>
                 {p.linkage}
               </div>
 

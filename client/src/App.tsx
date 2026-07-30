@@ -14,7 +14,7 @@ import WatchlistPage from "@/pages/Watchlist";
 import BacktestPage from "@/pages/Backtest";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AccessGate } from "@/components/AccessGate";
-import CoattailsPage from "@/pages/Coattails";
+import RidersPage from "@/pages/Riders";
 import { AssistantSheet } from "@/components/AssistantSheet";
 
 function AppRouter() {
@@ -25,7 +25,7 @@ function AppRouter() {
       <Route path="/catalysts" component={CatalystsPage} />
       <Route path="/graph" component={GraphPage} />
       <Route path="/watchlist" component={WatchlistPage} />
-      <Route path="/coattails" component={CoattailsPage} />
+      <Route path="/riders" component={RidersPage} />
       <Route path="/backtest" component={BacktestPage} />
       <Route component={NotFound} />
     </Switch>

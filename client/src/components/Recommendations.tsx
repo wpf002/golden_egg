@@ -24,7 +24,7 @@ const TONE = {
 
 /**
  * What the app thinks is worth your attention, derived from its own picks,
- * realized results and coattail figures. Server-cached for 30 minutes because
+ * realized results and rider figures. Server-cached for 30 minutes because
  * each rebuild is a premium call.
  */
 export function Recommendations() {

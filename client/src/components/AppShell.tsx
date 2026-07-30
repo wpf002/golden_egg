@@ -9,7 +9,7 @@ const navItems = [
   { href: "/eggs", label: "Golden Eggs", icon: Zap },
   { href: "/catalysts", label: "Catalysts", icon: Activity },
   { href: "/graph", label: "Supply Graph", icon: Network },
-  { href: "/coattails", label: "Coattails", icon: Link2 },
+  { href: "/riders", label: "Riders", icon: Link2 },
   { href: "/backtest", label: "Backtest", icon: LineChart },
   { href: "/watchlist", label: "Watchlist", icon: Star },
 ];
@@ -118,13 +118,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] tracking-wide transition-colors ${
+              className={`relative flex-1 min-w-0 flex flex-col items-center gap-1 px-0.5 py-2.5 text-[9px] transition-colors ${
                 active ? "text-primary" : "text-muted-foreground"
               }`}
               data-testid={`tab-${item.label.toLowerCase().replace(" ", "-")}`}
             >
               <item.icon size={18} strokeWidth={active ? 2 : 1.75} />
-              <span className="uppercase">{item.label.split(" ").pop()}</span>
+              {/* Seven tabs at 375px leaves ~53px each. Without the smaller
+                  type and the padding, labels butt against their neighbours
+                  and read as one run-on string. */}
+              <span className="uppercase w-full text-center truncate leading-none">
+                {item.label.split(" ").pop()}
+              </span>
               {item.href === "/watchlist" && openAlerts > 0 && (
                 <span className="absolute top-1 right-[calc(50%-16px)] w-2 h-2 rounded-full bg-primary" />
               )}
@@ -141,7 +146,7 @@ function pageTitle(loc: string) {
   if (loc.startsWith("/eggs")) return "Golden Eggs";
   if (loc.startsWith("/catalysts")) return "Catalysts";
   if (loc.startsWith("/graph")) return "Supply Graph";
-  if (loc.startsWith("/coattails")) return "Coattails";
+  if (loc.startsWith("/riders")) return "Riders";
   if (loc.startsWith("/backtest")) return "Backtest";
   if (loc.startsWith("/watchlist")) return "Watchlist";
   return "Golden Egg";
@@ -151,7 +156,7 @@ function pageSubtitle(loc: string) {
   if (loc.startsWith("/eggs")) return "The stocks our catalysts point to";
   if (loc.startsWith("/catalysts")) return "The news and filings we're tracking";
   if (loc.startsWith("/graph")) return "How catalysts ripple through supply chains";
-  if (loc.startsWith("/coattails")) return "Who grows when the giants grow";
+  if (loc.startsWith("/riders")) return "Smaller companies that grow with the big ones";
   if (loc.startsWith("/backtest")) return "How the picks have actually done";
   if (loc.startsWith("/watchlist")) return "Stocks you're keeping an eye on";
   return "";
