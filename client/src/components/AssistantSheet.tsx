@@ -51,7 +51,7 @@ export function AssistantSheet() {
       <button
         onClick={() => setOpen(true)}
         className="fixed right-4 bottom-24 lg:bottom-6 z-30 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
-        aria-label="Ask about your data"
+        aria-label="Open AI chat"
         data-testid="button-open-assistant"
       >
         <MessageSquare size={20} />
@@ -66,7 +66,7 @@ export function AssistantSheet() {
     >
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
         <MessageSquare size={14} className="text-primary" />
-        <span className="text-xs uppercase tracking-widest text-muted-foreground">Ask The Data</span>
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">AI Chat</span>
         <button
           onClick={() => setOpen(false)}
           className="ml-auto text-muted-foreground hover:text-foreground"

@@ -88,7 +88,10 @@ For each, give:
 Return AT MOST ${MAX_RIDERS_PER_ANCHOR}. Fewer good ones beats padding.
 Return ONLY JSON: {"riders":[{"ticker":"...","company_name":"...","thesis":"...","linkage":"...","novelty":0.7}]}`;
 
-  const text = await getLlm().complete(prompt, { tier: "premium", maxTokens: 3000 });
+  // 3000 was not enough: a premium reply came back capped with ZERO text
+  // characters, so nothing could be parsed after paying for the call. The
+  // egg pipeline settled on 8000 for the same reason.
+  const text = await getLlm().complete(prompt, { tier: "premium", maxTokens: 8000 });
   return parseRiders(extractJson(text), anchorTicker);
 }
 

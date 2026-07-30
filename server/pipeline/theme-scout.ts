@@ -24,6 +24,81 @@ const logger = log("theme-scout");
 const MIN_REJECTS = 5;
 const LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_PROPOSALS = 3;
+/**
+ * Minimum gap between scouting rounds.
+ *
+ * Without it, several scans in quick succession each ran a round over the same
+ * reject pile and produced near-identical themes minutes apart ("Insurance
+ * Agency Consolidation & Distribution" then "... & M&A"). Proposals are a
+ * request for the user's attention, so the bar for making one is time as well
+ * as material.
+ */
+const MIN_ROUND_GAP_MS = 12 * 60 * 60 * 1000;
+
+/** Words too generic to make two theme names distinct. */
+const GENERIC = new Set([
+  "and",
+  "the",
+  "of",
+  "for",
+  "in",
+  "to",
+  "a",
+  "modernization",
+  "innovation",
+  "technology",
+  "management",
+  "services",
+  "solutions",
+  "systems",
+  "sector",
+  "industry",
+  "market",
+  "markets",
+  "medicine",
+  "product",
+  "products",
+  "buildout",
+]);
+
+function significantTokens(name: string): Set<string> {
+  return new Set(
+    name
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length > 3 && !GENERIC.has(t))
+  );
+}
+
+/**
+ * True when `name` says substantially the same thing as one already taken.
+ *
+ * Exact-match dedupe was not enough: the scout proposed "Subsurface Imaging &
+ * Infrastructure Inspection" and later "Infrastructure Inspection & Imaging
+ * Technology" — different strings, same theme. Two shared significant words
+ * is the line, because canonical themes are short and deliberately distinct,
+ * so any real overlap of that size means a repeat. Near-duplicate themes are
+ * actively harmful: each one is a separate ripple-cache key, so they fragment
+ * the cache the canonical vocabulary exists to keep tight.
+ */
+export function isDuplicateTheme(name: string, taken: string[]): boolean {
+  const a = significantTokens(name);
+  if (a.size === 0) return true;
+  for (const t of taken) {
+    if (t.trim().toLowerCase() === name.trim().toLowerCase()) return true;
+    const b = significantTokens(t);
+    const shared = [...a].filter((x) => b.has(x)).length;
+    // Two shared significant words is a repeat outright.
+    if (shared >= 2) return true;
+    // With one shared word it depends on how much of each name that word IS.
+    // "Transfusion & Blood" vs "Hemostatic & Transfusion" is half of each, so
+    // it's the same theme. "Drone logistics" vs "Cannabis cash logistics"
+    // also shares one word, but the longer name has more to say — those are
+    // genuinely different, so the rule only fires when BOTH names are short.
+    if (shared >= 1 && a.size <= 2 && b.size <= 2) return true;
+  }
+  return false;
+}
 
 export type ParsedProposal = { name: string; rationale: string; evidence: string[] };
 
@@ -41,9 +116,7 @@ export function parseProposals(
   }
 ): ParsedProposal[] {
   const raw = ((parsed as { proposals?: unknown })?.proposals ?? []) as Array<Record<string, unknown>>;
-  const taken = new Set(
-    [...opts.existingThemes, ...opts.priorProposalNames].map((n) => n.trim().toLowerCase())
-  );
+  const taken = [...opts.existingThemes, ...opts.priorProposalNames];
   const out: ParsedProposal[] = [];
   for (const p of raw.slice(0, MAX_PROPOSALS)) {
     const name = String(p.name ?? "").trim();
@@ -51,9 +124,10 @@ export function parseProposals(
     const ids = Array.isArray(p.catalyst_ids) ? p.catalyst_ids.map(Number) : [];
     const evidence = ids.map((id) => opts.titlesById.get(id)).filter((t): t is string => !!t);
     if (name.length < 4 || name.length > 48) continue;
-    if (taken.has(name.toLowerCase())) continue;
+    // Checked against themes AND earlier proposals in this same batch.
+    if (isDuplicateTheme(name, taken)) continue;
     if (!rationale || evidence.length < 2) continue;
-    taken.add(name.toLowerCase());
+    taken.push(name);
     out.push({ name, rationale, evidence: evidence.slice(0, 5) });
   }
   return out;
@@ -67,7 +141,13 @@ export async function scoutThemes(now = Date.now()): Promise<{ proposed: number 
   // otherwise every scan would re-litigate the same pile.
   const prior = await storage.listThemeProposals(50);
   const newestProposalAt = prior.reduce((m, p) => Math.max(m, p.createdAt), 0);
-  const fresh = rejects.filter((r) => r.lastSeenAt > newestProposalAt);
+  // Rate-limit rounds. Several scans in a row otherwise each scouted the same
+  // pile and produced variations on one theme minutes apart.
+  if (now - newestProposalAt < MIN_ROUND_GAP_MS) return { proposed: 0 };
+  // firstSeenAt, NOT lastSeenAt: ingestion bumps lastSeenAt every time a
+  // catalyst is re-sighted, so the old reject pile kept looking brand new and
+  // re-triggered the scout on every single scan.
+  const fresh = rejects.filter((r) => r.firstSeenAt > newestProposalAt);
   if (fresh.length < MIN_REJECTS) return { proposed: 0 };
 
   const existingThemes = await activeThemes();

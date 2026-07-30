@@ -441,7 +441,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const out = await scanAnchor(raw);
       res.json(out);
     } catch (e) {
-      res.status(500).json({ error: (e as Error).message });
+      // LlmTruncatedError's message is aimed at whoever maintains the prompt,
+      // not at someone who just clicked a button.
+      const msg = (e as Error).message ?? "";
+      res.status(500).json({
+        error: /token cap/i.test(msg) ? "That one came back incomplete. Try it again in a moment." : msg,
+      });
     }
   });
 

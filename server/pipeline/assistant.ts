@@ -53,9 +53,15 @@ ${ctx.text}
 ${convo ? `\nConversation so far:\n${convo}\n` : ""}
 User: ${question.slice(0, 1000)}
 
-Answer in at most 200 words. Use specific tickers and figures from the brief. Plain prose or short bullets — no headers.`;
+Answer in at most 180 words, in flowing prose — the way you'd explain it to someone over coffee.
 
-  const text = await getLlm().complete(prompt, { tier: "premium", maxTokens: 900 });
+Hard rules on style, because the last version read like a database dump:
+- NO bullet points, NO dashes starting lines, NO markdown, NO bold.
+- NO "Label: value" pairs. Don't write "Calibrated confidence: 66%". Write "its confidence works out to 66% once you account for how the theme has actually done".
+- Weave the numbers into sentences. Two or three short paragraphs at most.
+- Lead with the answer in the first sentence, then why.`;
+
+  const text = await getLlm().complete(prompt, { tier: "premium", maxTokens: 4000 });
   return text.trim();
 }
 
@@ -115,7 +121,7 @@ Each item:
 Return ONLY JSON: {"recommendations":[{"title":"...","detail":"...","tickers":["ABC"],"kind":"opportunity"}]}`;
 
   try {
-    const text = await getLlm().complete(prompt, { tier: "premium", maxTokens: 1600 });
+    const text = await getLlm().complete(prompt, { tier: "premium", maxTokens: 6000 });
     const recommendations = parseRecommendations(extractJson(text));
     logger.info({ count: recommendations.length }, "recommendations built");
     return { recommendations, asOf: Date.now() };

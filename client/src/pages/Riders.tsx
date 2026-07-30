@@ -95,7 +95,7 @@ export default function RidersPage() {
             data-testid="button-find-riders"
           >
             <Play size={14} className={scanMut.isPending ? "animate-pulse mr-2" : "mr-2"} />
-            {scanMut.isPending ? "Looking…" : "Who Grows With It"}
+            {scanMut.isPending ? "Scanning…" : "Run the Scan Now"}
           </Button>
           {(anchorsQ.data?.suggested ?? []).length > 0 && (
             <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
