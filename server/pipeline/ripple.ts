@@ -270,7 +270,7 @@ TASK:
 Identify 4\u20138 PUBLICLY-TRADED US-listed tickers (equities, ADRs, or ETFs) that would benefit from this catalyst. For each:
   - Skip the OBVIOUS direct plays (e.g. for AI, skip NVDA \u2014 everyone owns it). Prioritize NON-OBVIOUS second- and third-tier beneficiaries.
   - hop_distance: 1 = first tier (direct supplier), 2 = second tier (supplier's supplier), 3 = third tier
-  - thesis: 1-2 sentences, written like a person. When you mention supply-chain depth, say "second-tier" or "third-tier" \u2014 never "2nd-order"/"3rd-order" and no other jargon.
+  - thesis: 1-2 sentences, written like a person. If you mention supply-chain depth, say "first-tier"/"second-tier"/"third-tier" \u2014 never "2nd-order"/"3rd-order" \u2014 and it MUST match the hop_distance you gave this row (2 = second-tier). Mismatched wording contradicts the tag shown next to it.
   - confidence: 0-1. Downgrade if the link is speculative or the ticker is illiquid/thinly-followed
   - novelty_score: 0-1. Higher = less obvious/less crowded (0.7+ preferred)
   - timing_lag: leading = benefits before mainstream notices; concurrent = benefits in current cycle; lagging = benefits later
