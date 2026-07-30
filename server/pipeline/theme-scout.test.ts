@@ -100,6 +100,18 @@ describe("isDuplicateTheme", () => {
     expect(isDuplicateTheme(proposed, [existing])).toBe(true);
   });
 
+  it("catches a repeat that only differs by word form", () => {
+    // The live miss: "Bank Compliance & Anti-Fraud Enforcement" sailed past a
+    // literal-string comparison because bank !== banking.
+    expect(
+      isDuplicateTheme("Bank Compliance & Anti-Fraud Enforcement", [
+        "Banking Sector Compliance & Risk Management",
+      ])
+    ).toBe(true);
+    expect(isDuplicateTheme("Insurer Rollups", ["Insurance Agency Consolidation & M&A"])).toBe(true);
+    expect(isDuplicateTheme("Uranium Enrichment", ["Uranium miners"])).toBe(true);
+  });
+
   it("catches an exact repeat regardless of case and spacing", () => {
     expect(isDuplicateTheme("  quantum computing ", ["Quantum computing"])).toBe(true);
   });

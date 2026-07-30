@@ -86,12 +86,44 @@ const GENERIC = new Set([
   "logistics",
 ]);
 
+/**
+ * Reduce a word to a rough root so word forms compare equal.
+ *
+ * Without this the filter compared literal strings, so "Bank Compliance" read
+ * as new next to "Banking Sector Compliance" — bank !== banking — and the
+ * duplicate it exists to stop walked straight through. Crude on purpose: it
+ * only has to collapse the endings that show up in theme names.
+ */
+function stem(word: string): string {
+  for (const suffix of [
+    "ing",
+    "ions",
+    "ion",
+    "ments",
+    "ment",
+    "ances",
+    "ance",
+    "ences",
+    "ence",
+    "ers",
+    "er",
+    "es",
+    "s",
+  ]) {
+    if (word.length - suffix.length >= 4 && word.endsWith(suffix)) {
+      return word.slice(0, -suffix.length);
+    }
+  }
+  return word;
+}
+
 function significantTokens(name: string): Set<string> {
   return new Set(
     name
       .toLowerCase()
       .split(/[^a-z0-9]+/)
       .filter((t) => t.length > 3 && !GENERIC.has(t))
+      .map(stem)
   );
 }
 
