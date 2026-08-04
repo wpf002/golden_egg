@@ -8,6 +8,7 @@ import { Pagination } from "@/components/Pagination";
 import { eggScore } from "@/lib/scoring";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RidersPanel } from "@/components/RidersPanel";
 
 export default function EggsPage() {
   const { data: eggs = [], isLoading } = useQuery<GoldenEggWithCatalyst[]>({ queryKey: ["/api/eggs"] });
@@ -16,6 +17,10 @@ export default function EggsPage() {
   const [sortBy, setSortBy] = useState("score");
   const [openEggId, setOpenEggId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
+  // Two ways into the same question — which stocks are worth a look. One
+  // starts from a news catalyst, the other from a big company. They were
+  // separate pages; a toggle keeps them one destination.
+  const [source, setSource] = useState<"news" | "companies">("news");
 
   // The sector filter lives in the URL (?sector=), not component state: it lets
   // the Overview heatmap deep-link here and makes a filtered view shareable.
@@ -62,86 +67,112 @@ export default function EggsPage() {
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-[1400px] mx-auto">
-      <div className="mb-6 flex items-center gap-3 flex-wrap">
-        <Input
-          placeholder="Search ticker, thesis, theme…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="max-w-xs"
-          data-testid="input-search-eggs"
-        />
-        <Select value={sector} onValueChange={setSector}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Sector" />
-          </SelectTrigger>
-          <SelectContent>
-            {sectors.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s === "all" ? "All Sectors" : s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={minConf}
-          onValueChange={(v) => {
-            setMinConf(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Confidence" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="0">Any</SelectItem>
-            <SelectItem value="0.5">≥ 50%</SelectItem>
-            <SelectItem value="0.7">≥ 70%</SelectItem>
-            <SelectItem value="0.85">≥ 85%</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={sortBy}
-          onValueChange={(v) => {
-            setSortBy(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Sort" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="score">Best Score</SelectItem>
-            <SelectItem value="conf">Confidence</SelectItem>
-            <SelectItem value="novelty">Most Novel</SelectItem>
-            <SelectItem value="recent">Most Recent</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="ml-auto text-xs text-muted-foreground tabular">
-          {filtered.length} of {eggs.length}
-        </div>
+      <div className="mb-6 inline-flex rounded-md border border-card-border bg-card p-0.5">
+        {(
+          [
+            ["news", "From The News"],
+            ["companies", "From Big Companies"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setSource(key)}
+            className={`px-3 py-1.5 text-xs rounded transition-colors ${
+              source === key ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid={`toggle-source-${key}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-40 border border-card-border rounded-md bg-card animate-pulse" />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="border border-dashed border-border rounded-md py-16 text-center text-sm text-muted-foreground">
-          Nothing matches those filters — try loosening them.
-        </div>
-      ) : (
+      {source === "companies" && <RidersPanel />}
+
+      {source === "news" && (
         <>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            {visible.map((egg) => (
-              <EggCard key={egg.id} egg={egg} onOpen={setOpenEggId} />
-            ))}
+          <div className="mb-6 flex items-center gap-3 flex-wrap">
+            <Input
+              placeholder="Search ticker, thesis, theme…"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="max-w-xs"
+              data-testid="input-search-eggs"
+            />
+            <Select value={sector} onValueChange={setSector}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Sector" />
+              </SelectTrigger>
+              <SelectContent>
+                {sectors.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s === "all" ? "All Sectors" : s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={minConf}
+              onValueChange={(v) => {
+                setMinConf(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Confidence" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Any</SelectItem>
+                <SelectItem value="0.5">≥ 50%</SelectItem>
+                <SelectItem value="0.7">≥ 70%</SelectItem>
+                <SelectItem value="0.85">≥ 85%</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={sortBy}
+              onValueChange={(v) => {
+                setSortBy(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="score">Best Score</SelectItem>
+                <SelectItem value="conf">Confidence</SelectItem>
+                <SelectItem value="novelty">Most Novel</SelectItem>
+                <SelectItem value="recent">Most Recent</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="ml-auto text-xs text-muted-foreground tabular">
+              {filtered.length} of {eggs.length}
+            </div>
           </div>
-          <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-40 border border-card-border rounded-md bg-card animate-pulse" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="border border-dashed border-border rounded-md py-16 text-center text-sm text-muted-foreground">
+              Nothing matches those filters — try loosening them.
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                {visible.map((egg) => (
+                  <EggCard key={egg.id} egg={egg} onOpen={setOpenEggId} />
+                ))}
+              </div>
+              <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
+            </>
+          )}
         </>
       )}
       <EggDetailSheet eggId={openEggId} onClose={() => setOpenEggId(null)} />

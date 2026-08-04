@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Logo } from "./Logo";
-import { Sparkles, Zap, Network, Star, Activity, LineChart, Link2 } from "lucide-react";
+import { Sparkles, Zap, Network, Star, Activity, LineChart } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { PriceAlert } from "@/lib/types";
 
@@ -9,7 +9,6 @@ const navItems = [
   { href: "/eggs", label: "Golden Eggs", icon: Zap },
   { href: "/catalysts", label: "Catalysts", icon: Activity },
   { href: "/graph", label: "Supply Graph", icon: Network },
-  { href: "/riders", label: "Riders", icon: Link2 },
   { href: "/backtest", label: "Backtest", icon: LineChart },
   { href: "/watchlist", label: "Watchlist", icon: Star },
 ];
@@ -124,9 +123,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               data-testid={`tab-${item.label.toLowerCase().replace(" ", "-")}`}
             >
               <item.icon size={18} strokeWidth={active ? 2 : 1.75} />
-              {/* Seven tabs at 375px leaves ~53px each. Without the smaller
-                  type and the padding, labels butt against their neighbours
-                  and read as one run-on string. */}
+              {/* Tabs share a 375px phone screen, so labels need the smaller
+                  type and the padding — without them they butt against their
+                  neighbours and read as one run-on string. */}
               <span className="uppercase w-full text-center truncate leading-none">
                 {item.label.split(" ").pop()}
               </span>
@@ -146,17 +145,15 @@ function pageTitle(loc: string) {
   if (loc.startsWith("/eggs")) return "Golden Eggs";
   if (loc.startsWith("/catalysts")) return "Catalysts";
   if (loc.startsWith("/graph")) return "Supply Graph";
-  if (loc.startsWith("/riders")) return "Riders";
   if (loc.startsWith("/backtest")) return "Backtest";
   if (loc.startsWith("/watchlist")) return "Watchlist";
   return "Golden Egg";
 }
 function pageSubtitle(loc: string) {
   if (loc === "/") return "What's moving, and who quietly benefits";
-  if (loc.startsWith("/eggs")) return "The stocks our catalysts point to";
+  if (loc.startsWith("/eggs")) return "Stocks worth a look, and why";
   if (loc.startsWith("/catalysts")) return "The news and filings we're tracking";
   if (loc.startsWith("/graph")) return "How catalysts ripple through supply chains";
-  if (loc.startsWith("/riders")) return "Smaller companies that grow with the big ones";
   if (loc.startsWith("/backtest")) return "How the picks have actually done";
   if (loc.startsWith("/watchlist")) return "Stocks you're keeping an eye on";
   return "";

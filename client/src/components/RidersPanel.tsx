@@ -43,7 +43,7 @@ function money(m: number | null) {
 
 const PAGE_SIZE = 8;
 
-export default function RidersPage() {
+export function RidersPanel() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [anchor, setAnchor] = useState("");
@@ -72,7 +72,7 @@ export default function RidersPage() {
   const visible = picks.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
-    <div className="px-4 py-6 md:px-8 md:py-8 max-w-[1200px] mx-auto">
+    <div>
       <div className="mb-6">
         <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed mb-4">
           Type in a big company everyone already follows. You&rsquo;ll get back the smaller companies that

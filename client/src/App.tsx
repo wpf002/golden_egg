@@ -14,7 +14,6 @@ import WatchlistPage from "@/pages/Watchlist";
 import BacktestPage from "@/pages/Backtest";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AccessGate } from "@/components/AccessGate";
-import RidersPage from "@/pages/Riders";
 import { AssistantSheet } from "@/components/AssistantSheet";
 
 function AppRouter() {
@@ -25,7 +24,8 @@ function AppRouter() {
       <Route path="/catalysts" component={CatalystsPage} />
       <Route path="/graph" component={GraphPage} />
       <Route path="/watchlist" component={WatchlistPage} />
-      <Route path="/riders" component={RidersPage} />
+      {/* Riders folded into Golden Eggs; old links still land somewhere sane. */}
+      <Route path="/riders" component={EggsPage} />
       <Route path="/backtest" component={BacktestPage} />
       <Route component={NotFound} />
     </Switch>
