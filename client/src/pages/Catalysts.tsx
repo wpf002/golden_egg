@@ -9,6 +9,7 @@ import { LoadingSkeleton, ErrorState, EmptyState } from "@/components/QueryState
 import { AddCatalystDialog } from "@/components/AddCatalystDialog";
 import { Pagination } from "@/components/Pagination";
 import { ThemeProposals } from "@/components/ThemeProposals";
+import { hopLabel } from "@/lib/text";
 
 export default function CatalystsPage() {
   const catalystsQ = useQuery<Catalyst[]>({ queryKey: ["/api/catalysts"] });
@@ -139,22 +140,22 @@ function CatalystRow({
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">strength</div>
           </div>
         </div>
-        <div className="flex items-center gap-4 pt-2 mt-2 border-t border-border/40 text-[11px] text-muted-foreground tabular">
+        <div className="flex items-center flex-wrap gap-x-4 pt-1 mt-2 border-t border-border/40 text-[11px] text-muted-foreground tabular">
           <button
             onClick={onToggle}
-            className="inline-flex items-center gap-1 text-foreground/70 hover:text-primary transition-colors"
+            className="inline-flex items-center gap-1 py-2 text-foreground/70 hover:text-primary transition-colors"
             data-testid={`button-toggle-catalyst-${c.id}`}
           >
             {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
             View Golden Eggs
           </button>
-          <span>Seen {formatRelative(c.lastSeenAt)}</span>
+          <span className="py-2">Seen {formatRelative(c.lastSeenAt)}</span>
           {c.sourceUrl && (
             <a
               href={c.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary hover:underline inline-flex items-center gap-1"
+              className="text-primary hover:underline inline-flex items-center gap-1 py-2"
             >
               Source <ExternalLink size={10} />
             </a>
@@ -183,7 +184,7 @@ function CatalystRow({
                   <span className="font-mono text-sm text-primary tabular w-16">{e.ticker}</span>
                   <span className="flex-1 text-sm text-foreground truncate">{e.companyName}</span>
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Hop {e.hopDistance}
+                    {hopLabel(e.hopDistance)}
                   </span>
                   <span className="text-[11px] font-mono tabular text-muted-foreground w-12 text-right">
                     {(e.confidence * 100).toFixed(0)}%

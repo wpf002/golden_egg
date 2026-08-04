@@ -50,7 +50,7 @@ export function AssistantSheet() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed right-4 bottom-24 lg:bottom-6 z-30 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
+        className="fixed right-3 bottom-[4.75rem] lg:right-6 lg:bottom-6 z-30 h-11 w-11 lg:h-12 lg:w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
         aria-label="Open AI chat"
         data-testid="button-open-assistant"
       >
@@ -62,6 +62,7 @@ export function AssistantSheet() {
   return (
     <div
       className="fixed inset-x-0 bottom-0 lg:inset-x-auto lg:right-6 lg:bottom-6 z-30 lg:w-[420px] h-[70vh] lg:h-[560px] border border-card-border bg-background rounded-t-lg lg:rounded-lg shadow-2xl flex flex-col"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       data-testid="assistant-panel"
     >
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
