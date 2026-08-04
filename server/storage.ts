@@ -161,6 +161,8 @@ export interface IStorage {
   // Theme scout
   /** Analyzed-but-unplaced catalysts (no canonical theme) — the scout's raw material. */
   listUnplacedRejects(sinceMs: number, limit?: number): Promise<Catalyst[]>;
+  /** Record that these catalysts have been through a scouting round. */
+  markCatalystsScouted(ids: number[], ts: number): Promise<void> | void;
   createThemeProposal(p: InsertThemeProposal): Promise<ThemeProposal>;
   listThemeProposals(limit?: number): Promise<ThemeProposal[]>;
   getThemeProposal(id: number): Promise<ThemeProposal | undefined>;
@@ -564,12 +566,22 @@ export class DatabaseStorage implements IStorage {
           eq(catalysts.rippleAnalyzed, true),
           sql`(${catalysts.canonicalTheme} IS NULL OR ${catalysts.canonicalTheme} = '')`,
           sql`${catalysts.sourceType} != 'seed'`,
-          gte(catalysts.lastSeenAt, sinceMs)
+          // Never shown to the scout before. This is what stops it grinding
+          // over the same rejects and renaming the same theme.
+          isNull(catalysts.scoutedAt),
+          gte(catalysts.firstSeenAt, sinceMs)
         )
       )
-      .orderBy(desc(catalysts.lastSeenAt))
+      .orderBy(desc(catalysts.firstSeenAt))
       .limit(limit)
       .all();
+  }
+  async markCatalystsScouted(ids: number[], ts: number) {
+    if (ids.length === 0) return;
+    const upd = sqlite.prepare("UPDATE catalysts SET scouted_at = ? WHERE id = ?");
+    sqlite.transaction(() => {
+      for (const id of ids) upd.run(ts, id);
+    })();
   }
   async createThemeProposal(p: InsertThemeProposal) {
     return db.insert(themeProposals).values(p).returning().get();

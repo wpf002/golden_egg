@@ -1,0 +1,1 @@
+ALTER TABLE `catalysts` ADD `scouted_at` integer;

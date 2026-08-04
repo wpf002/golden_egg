@@ -170,3 +170,20 @@ describe("parseProposals near-duplicate handling", () => {
     expect(out[0].name).toBe("Subsurface Imaging & Infrastructure Inspection");
   });
 });
+
+describe("scout material is never reused", () => {
+  it("asks storage only for catalysts it has never examined", async () => {
+    // Guards the fix for the root cause of repeated proposals: the query used
+    // to order by lastSeenAt, which ingestion bumps on every re-sighting, so
+    // the same 40 rejects surfaced every round and the scout kept renaming the
+    // same theme. The SQL must filter on scoutedAt IS NULL.
+    const src = await import("node:fs/promises").then((fs) =>
+      fs.readFile(new URL("../storage.ts", import.meta.url), "utf8")
+    );
+    const fn = src.slice(src.indexOf("async listUnplacedRejects"));
+    const body = fn.slice(0, fn.indexOf("\n  }"));
+    expect(body).toContain("isNull(catalysts.scoutedAt)");
+    expect(body).toContain("catalysts.firstSeenAt");
+    expect(body).not.toContain("catalysts.lastSeenAt");
+  });
+});

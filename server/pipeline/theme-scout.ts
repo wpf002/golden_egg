@@ -199,11 +199,9 @@ export async function scoutThemes(now = Date.now()): Promise<{ proposed: number 
   // Rate-limit rounds. Several scans in a row otherwise each scouted the same
   // pile and produced variations on one theme minutes apart.
   if (now - newestProposalAt < MIN_ROUND_GAP_MS) return { proposed: 0 };
-  // firstSeenAt, NOT lastSeenAt: ingestion bumps lastSeenAt every time a
-  // catalyst is re-sighted, so the old reject pile kept looking brand new and
-  // re-triggered the scout on every single scan.
-  const fresh = rejects.filter((r) => r.firstSeenAt > newestProposalAt);
-  if (fresh.length < MIN_REJECTS) return { proposed: 0 };
+  // The query already excludes anything a previous round examined, so every
+  // row here is material the scout has genuinely never seen.
+  if (rejects.length < MIN_REJECTS) return { proposed: 0 };
 
   const existingThemes = await activeThemes();
   const items = rejects.map((c) => ({
@@ -253,6 +251,12 @@ Return ONLY JSON: {"proposals":[{"name":"...","rationale":"...","catalyst_ids":[
         decidedAt: null,
       });
     }
+    // Mark them examined whether or not they yielded a theme: they have had
+    // their turn, and re-reading them is what produced repeats.
+    await storage.markCatalystsScouted(
+      rejects.map((c) => c.id),
+      now
+    );
     if (proposals.length > 0) {
       logger.info({ proposed: proposals.map((p) => p.name) }, "theme scout proposed new themes");
     }

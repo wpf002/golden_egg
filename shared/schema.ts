@@ -27,6 +27,11 @@ export const catalysts = sqliteTable(
     firstSeenAt: integer("first_seen_at").notNull(), // unix ms
     lastSeenAt: integer("last_seen_at").notNull(),
     rippleAnalyzed: integer("ripple_analyzed", { mode: "boolean" }).notNull().default(false),
+    // When the theme scout last examined this catalyst. Without it the scout
+    // re-read the same top-40 rejects every round — ingestion bumps
+    // lastSeenAt on every re-sighting, so the same rows kept floating up —
+    // and unsurprisingly kept proposing variations on the same themes.
+    scoutedAt: integer("scouted_at"),
     rippleCostCredits: integer("ripple_cost_credits").notNull().default(0), // approx credits spent on premium reasoning
   },
   (t) => ({

@@ -64,6 +64,13 @@
       "when": 1785433500866,
       "tag": "0008_colossal_meltdown",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1785862174515,
+      "tag": "0009_pale_ogun",
+      "breakpoints": true
     }
   ]
 }

@@ -45,6 +45,7 @@ async function main() {
     firstSeenAt: r.first_seen_at,
     lastSeenAt: r.last_seen_at,
     rippleAnalyzed: !!r.ripple_analyzed,
+    scoutedAt: r.scouted_at ?? null,
     rippleCostCredits: r.ripple_cost_credits,
   }));
 
