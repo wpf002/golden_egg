@@ -11,7 +11,7 @@ import EggsPage from "@/pages/Eggs";
 import CatalystsPage from "@/pages/Catalysts";
 import GraphPage from "@/pages/Graph";
 import WatchlistPage from "@/pages/Watchlist";
-import BacktestPage from "@/pages/Backtest";
+import TrackRecordPage from "@/pages/TrackRecord";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AccessGate } from "@/components/AccessGate";
 import { AssistantSheet } from "@/components/AssistantSheet";
@@ -26,7 +26,9 @@ function AppRouter() {
       <Route path="/watchlist" component={WatchlistPage} />
       {/* Riders folded into Golden Eggs; old links still land somewhere sane. */}
       <Route path="/riders" component={EggsPage} />
-      <Route path="/backtest" component={BacktestPage} />
+      {/* Renamed from /backtest; the old path still resolves. */}
+      <Route path="/track-record" component={TrackRecordPage} />
+      <Route path="/backtest" component={TrackRecordPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -9,7 +9,7 @@ const navItems = [
   { href: "/eggs", label: "Golden Eggs", icon: Zap },
   { href: "/catalysts", label: "Catalysts", icon: Activity },
   { href: "/graph", label: "Supply Graph", icon: Network },
-  { href: "/backtest", label: "Backtest", icon: LineChart },
+  { href: "/track-record", label: "Track Record", icon: LineChart },
   { href: "/watchlist", label: "Watchlist", icon: Star },
 ];
 
@@ -145,7 +145,7 @@ function pageTitle(loc: string) {
   if (loc.startsWith("/eggs")) return "Golden Eggs";
   if (loc.startsWith("/catalysts")) return "Catalysts";
   if (loc.startsWith("/graph")) return "Supply Graph";
-  if (loc.startsWith("/backtest")) return "Backtest";
+  if (loc.startsWith("/track-record") || loc.startsWith("/backtest")) return "Track Record";
   if (loc.startsWith("/watchlist")) return "Watchlist";
   return "Golden Egg";
 }
@@ -154,7 +154,8 @@ function pageSubtitle(loc: string) {
   if (loc.startsWith("/eggs")) return "Stocks worth a look, and why";
   if (loc.startsWith("/catalysts")) return "The news and filings we're tracking";
   if (loc.startsWith("/graph")) return "How catalysts ripple through supply chains";
-  if (loc.startsWith("/backtest")) return "How the picks have actually done";
+  if (loc.startsWith("/track-record") || loc.startsWith("/backtest"))
+    return "How the picks have actually done";
   if (loc.startsWith("/watchlist")) return "Stocks you're keeping an eye on";
   return "";
 }

@@ -75,7 +75,7 @@ function CalibrationTable() {
   );
 }
 
-export default function BacktestPage() {
+export default function TrackRecordPage() {
   const { toast } = useToast();
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [page, setPage] = useState(1);
@@ -87,11 +87,12 @@ export default function BacktestPage() {
       setResult(j);
       setPage(1);
       toast({
-        title: "Backtest Complete",
+        title: "Scoring Complete",
         description: `${j.rows.length} picks · ${j.overall ? `${(j.overall.winRate * 100).toFixed(0)}% in the green` : "no returns yet"}`,
       });
     },
-    onError: (e: Error) => toast({ title: "Backtest Failed", description: e.message || "Unknown error" }),
+    onError: (e: Error) =>
+      toast({ title: "Couldn't Score The Picks", description: e.message || "Unknown error" }),
   });
 
   return (
@@ -106,10 +107,10 @@ export default function BacktestPage() {
           onClick={() => runMut.mutate()}
           disabled={runMut.isPending}
           className="ml-auto"
-          data-testid="button-run-backtest"
+          data-testid="button-score-picks"
         >
           <Play size={14} className={runMut.isPending ? "animate-pulse" : ""} />
-          {runMut.isPending ? "Running…" : "Run Backtest"}
+          {runMut.isPending ? "Scoring…" : "Score The Picks"}
         </Button>
       </div>
 
@@ -170,8 +171,8 @@ export default function BacktestPage() {
       {!result && !runMut.isPending && (
         <div className="border border-dashed border-border rounded-md py-16 text-center text-sm text-muted-foreground">
           <TrendingUp size={24} strokeWidth={1.5} className="mx-auto mb-3 text-muted-foreground/50" />
-          <div className="mb-1 text-foreground">Ready to backtest</div>
-          Click &ldquo;Run Backtest&rdquo; to score every egg against its price history.
+          <div className="mb-1 text-foreground">Nothing scored yet</div>
+          Hit &ldquo;Score The Picks&rdquo; to see how every pick has done since we flagged it.
         </div>
       )}
 
@@ -221,7 +222,7 @@ export default function BacktestPage() {
                     <tr
                       key={r.eggId}
                       className="border-b border-border/40 hover-elevate"
-                      data-testid={`row-backtest-${r.eggId}`}
+                      data-testid={`row-scored-${r.eggId}`}
                     >
                       <td className="px-3 py-2 font-mono text-primary tabular">{r.ticker}</td>
                       <td className="px-3 py-2 text-foreground truncate max-w-[180px]">{r.companyName}</td>
